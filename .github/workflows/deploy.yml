@@ -38,4 +38,4 @@ jobs:
             docker compose pull
             docker compose up --build -d
             echo "✅ Deployment complete via Docker Compose."
-          EOF 
+          EOF
