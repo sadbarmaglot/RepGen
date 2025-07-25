@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  bot:
+    build: .
+    container_name: repgen-bot
+    env_file:
+      - .env
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ./whitelist.json:/app/whitelist.json
+    restart: unless-stopped 
