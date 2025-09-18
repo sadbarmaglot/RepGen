@@ -123,18 +123,18 @@ jobs:
         
         foreach ($file in $requiredFiles) {
           if (Test-Path $file) {
-            echo "✅ $file найден"
+            echo "[OK] $file найден"
           } else {
-            echo "❌ $file не найден!"
+            echo "[ERROR] $file не найден!"
             exit 1
           }
         }
         
         foreach ($dir in $requiredDirs) {
           if (Test-Path $dir) {
-            echo "✅ папка $dir найдена"
+            echo "[OK] папка $dir найдена"
           } else {
-            echo "❌ папка $dir не найдена!"
+            echo "[ERROR] папка $dir не найдена!"
             exit 1
           }
         }
@@ -144,61 +144,61 @@ jobs:
         # Проверяем Python модули
         echo "Проверяем Python модули..."
         try {
-          python -c "import tkinter; print('✅ tkinter OK')"
+          python -c "import tkinter; print('[OK] tkinter OK')"
         } catch {
-          echo "❌ tkinter не найден - это критическая ошибка!"
+          echo "[ERROR] tkinter не найден - это критическая ошибка!"
           exit 1
         }
         
         try {
-          python -c "import PIL; print('✅ PIL OK')"
+          python -c "import PIL; print('[OK] PIL OK')"
         } catch {
-          echo "❌ PIL не найден!"
+          echo "[ERROR] PIL не найден!"
           pip install Pillow
         }
         
         try {
-          python -c "import openai; print('✅ openai OK')"
+          python -c "import openai; print('[OK] openai OK')"
         } catch {
-          echo "❌ openai не найден!"
+          echo "[ERROR] openai не найден!"
           exit 1
         }
         
         try {
-          python -c "import requests; print('✅ requests OK')"
+          python -c "import requests; print('[OK] requests OK')"
         } catch {
-          echo "❌ requests не найден!"
+          echo "[ERROR] requests не найден!"
           exit 1
         }
         
         try {
-          python -c "import docx; print('✅ docx OK')"
+          python -c "import docx; print('[OK] docx OK')"
         } catch {
-          echo "❌ docx не найден!"
+          echo "[ERROR] docx не найден!"
           exit 1
         }
         
         try {
-          python -c "import trimesh; print('✅ trimesh OK')"
+          python -c "import trimesh; print('[OK] trimesh OK')"
         } catch {
-          echo "❌ trimesh не найден!"
+          echo "[ERROR] trimesh не найден!"
           exit 1
         }
         
         try {
-          python -c "import numpy; print('✅ numpy OK')"
+          python -c "import numpy; print('[OK] numpy OK')"
         } catch {
-          echo "❌ numpy не найден!"
+          echo "[ERROR] numpy не найден!"
           exit 1
         }
         
         echo "Все модули проверены успешно"
         
         if (-not (Test-Path "assets\icon.ico")) {
-          echo "⚠️ assets\icon.ico не найден, используем без иконки"
+          echo "[WARNING] assets\icon.ico не найден, используем без иконки"
           $iconParam = ""
         } else {
-          echo "✅ Иконка найдена: assets\icon.ico"
+          echo "[OK] Иконка найдена: assets\icon.ico"
           $iconParam = "--icon=assets\icon.ico"
         }
         
@@ -262,7 +262,7 @@ jobs:
         }
         
         if ($LASTEXITCODE -ne 0) {
-          echo "❌ Ошибка PyInstaller! Код выхода: $LASTEXITCODE"
+          echo "[ERROR] Ошибка PyInstaller! Код выхода: $LASTEXITCODE"
           echo "Проверьте логи выше для деталей"
           
           # Показываем содержимое папки dist если она есть
@@ -278,18 +278,18 @@ jobs:
           exit 1
         }
         
-        echo "✅ PyInstaller завершился успешно"
+        echo "[OK] PyInstaller завершился успешно"
         
         # Копируем собранный файл в build/win
         if (Test-Path "dist\DefectAnalyzer.exe") {
           Copy-Item "dist\DefectAnalyzer.exe" "build\win\" -Force
-          echo "✅ DefectAnalyzer.exe скопирован в build\win\"
+          echo "[OK] DefectAnalyzer.exe скопирован в build\win\"
           
           # Показываем информацию о файле
           $fileInfo = Get-Item "build\win\DefectAnalyzer.exe"
           echo "Размер файла: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
         } else {
-          echo "❌ DefectAnalyzer.exe не найден в папке dist\"
+          echo "[ERROR] DefectAnalyzer.exe не найден в папке dist\"
           exit 1
         }
     
@@ -337,8 +337,8 @@ jobs:
           echo "Новое значение VersionInfoVersion: $newVersionInfo"
           
           Set-Content $issFile -Value $content -Encoding UTF8
-          echo "✅ Версия обновлена в $issFile до $version"
-          echo "✅ VersionInfoVersion установлена в $versionInfoVersion"
+          echo "[OK] Версия обновлена в $issFile до $version"
+          echo "[OK] VersionInfoVersion установлена в $versionInfoVersion"
           
           # Проверяем, что файл действительно обновился
           echo "Проверяем финальное содержимое файла:"
@@ -348,15 +348,15 @@ jobs:
           
           # Проверяем, что версия валидна (только цифры и точки)
           if ($finalVersionInfo -match 'VersionInfoVersion=(\d+\.\d+\.\d+\.\d+)') {
-            echo "✅ VersionInfoVersion имеет правильный формат: $($matches[1])"
+            echo "[OK] VersionInfoVersion имеет правильный формат: $($matches[1])"
           } else {
-            echo "❌ VersionInfoVersion имеет неправильный формат: $finalVersionInfo"
+            echo "[ERROR] VersionInfoVersion имеет неправильный формат: $finalVersionInfo"
             echo "Показываем контекст вокруг VersionInfoVersion:"
             $context = ($finalContent | Select-String -Pattern 'VersionInfoVersion=.*' -Context 2,2).Line
             $context | ForEach-Object { echo "  $_" }
           }
         } else {
-          echo "❌ Файл $issFile не найден!"
+          echo "[ERROR] Файл $issFile не найден!"
           exit 1
         }
     
@@ -374,9 +374,9 @@ jobs:
           
           # Проверяем валидность
           if ($versionInfo -match 'VersionInfoVersion=(\d+\.\d+\.\d+\.\d+)') {
-            echo "✅ VersionInfoVersion валидна: $($matches[1])"
+            echo "[OK] VersionInfoVersion валидна: $($matches[1])"
           } else {
-            echo "❌ VersionInfoVersion невалидна: $versionInfo"
+            echo "[ERROR] VersionInfoVersion невалидна: $versionInfo"
             echo "Показываем строки вокруг VersionInfoVersion:"
             $lines = Get-Content $issFile
             for ($i = 0; $i -lt $lines.Length; $i++) {
@@ -398,7 +398,7 @@ jobs:
         }
         
         if (-not (Test-Path $isccPath)) {
-          echo "❌ ISCC.exe не найден! Проверьте установку Inno Setup"
+          echo "[ERROR] ISCC.exe не найден! Проверьте установку Inno Setup"
           Get-ChildItem -Path "${env:ProgramFiles}" -Filter "*Inno*" -Recurse
           Get-ChildItem -Path "${env:ProgramFiles(x86)}" -Filter "*Inno*" -Recurse
           exit 1
@@ -411,9 +411,9 @@ jobs:
         & $isccPath $issFile
         
         if ($LASTEXITCODE -eq 0) {
-          echo "✅ Установщик успешно скомпилирован!"
+          echo "[OK] Установщик успешно скомпилирован!"
         } else {
-          echo "❌ Ошибка компиляции установщика!"
+          echo "[ERROR] Ошибка компиляции установщика!"
           exit 1
         }
     
