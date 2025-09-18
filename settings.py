@@ -1,6 +1,21 @@
 import os
 
-from aiogram.fsm.state import State, StatesGroup
+# Условный импорт aiogram для совместимости с Windows приложением
+try:
+    from aiogram.fsm.state import State, StatesGroup
+    AIOGRAM_AVAILABLE = True
+except ImportError:
+    # Создаем заглушки для Windows приложения
+    class State:
+        def __init__(self):
+            pass
+    
+    class StatesGroup:
+        def __init__(self):
+            pass
+    
+    AIOGRAM_AVAILABLE = False
+
 from docx.shared import RGBColor, Cm, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
@@ -232,3 +247,45 @@ CONCLUSION_TABLE_SUBHEAD_TEXTS = [
 ]
 
 CONCLUSION_TABLE_COLUMN_WIDTHS = [Cm(0.5), Cm(8), Cm(7), Cm(6)]
+
+# Константы для таблицы износа
+WEAR_TABLE_NUM_COLS = 4
+WEAR_TABLE_NUM_ROWS = 2
+WEAR_TABLE_HEAD_TEXTS = [
+    "Элементы жилого здания",
+    "Удельный вес элемента в общей стоимости здания, %",
+    "Физический износ элементов здания %",
+    ""
+]
+WEAR_TABLE_SUBHEAD_TEXTS = [
+    "",
+    "",
+    "По результатам оценки",
+    "Средневзвешенная степень физического износа"
+]
+WEAR_TABLE_HEAD_FONT_SIZE = Pt(12)
+WEAR_TABLE_SUBHEAD_FONT_SIZE = Pt(10)
+WEAR_TABLE_COLUMN_WIDTHS = [Cm(8), Cm(4), Cm(4), Cm(4)]
+
+# Стандартные элементы здания для таблицы износа
+DEFAULT_WEAR_ELEMENTS = [
+    ["Фундаменты", "2", "30", "0.6"],
+    ["Стены и перегородки", "29", "20", "5.8"],
+    ["Перекрытия", "16", "35", "5.6"],
+    ["Кровля", "3", "50", "1.5"],
+    ["Полы", "10", "45", "4.5"],
+    ["Проёмы", "9", "30", "2.7"],
+    ["Отделочные работы", "6", "55", "3.3"],
+    ["Внутренние санитарно-технические устройства", "12", "45", "5.4"],
+    ["Внутренние электротехнические устройства", "9", "30", "2.7"],
+    ["Прочие работы", "4", "45", "1.8"],
+    ["Итого", "", "", "32.1"]
+]
+
+# Стандартные конструктивные решения
+DEFAULT_CONSTRUCTIVE_DECISIONS = [
+    ["Фундаменты", "Фундаменты выполнены ленточными из фундаментных блоков"],
+    ["Стены", "Стены кирпичные 750"],
+    ["Покрытие", "Конструкции покрытия выполнены в виде настила из сборных железобетонных ребристых плит"],
+    ["Кровля", "Плоская. Покрытие кровли из рулонных материалов"]
+]

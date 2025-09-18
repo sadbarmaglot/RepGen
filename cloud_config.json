@@ -1,0 +1,28 @@
+{
+  "enabled": false,
+  "sync_method": "ftp",
+  "auto_sync": true,
+  "sync_schedule": "daily",
+  "ftp": {
+    "host": "",
+    "port": 21,
+    "username": "",
+    "password": "",
+    "remote_path": "/reports/"
+  },
+  "google_drive": {
+    "credentials_file": "",
+    "folder_id": ""
+  },
+  "email": {
+    "smtp_server": "",
+    "smtp_port": 587,
+    "username": "",
+    "password": "",
+    "recipients": []
+  },
+  "webhook": {
+    "url": "",
+    "auth_token": ""
+  }
+}

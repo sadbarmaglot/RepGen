@@ -1,5 +1,31 @@
-aiogram==3.21.0
-python-dotenv==1.1.1
-python-docx==1.2.0
+# Основные зависимости для Windows приложения
+# Примечание: aiogram НЕ нужен для Windows приложения - используется условный импорт
 openai==1.97.1
-google-cloud-storage==3.1.0
+python-docx==1.2.0
+Pillow==11.3.0
+pillow-heif==1.1.0
+python-dotenv==1.1.1
+
+# Облачная синхронизация
+requests==2.31.0
+
+# Опциональные зависимости для расширенной функциональности
+# Google Drive API (раскомментировать при необходимости)
+# google-api-python-client==2.100.0
+# google-auth-httplib2==0.1.1
+# google-auth-oauthlib==1.0.0
+
+# Опциональные зависимости для улучшенного UI
+# PyQt6==6.6.1  # Если захотим перейти на более продвинутый UI
+
+# Для создания .exe файла
+pyinstaller==6.2.0
+
+# 3D модели и анализ
+trimesh[easy]>=3.15.0
+pygltflib>=1.15.0
+numpy>=1.21.0
+# Дополнительные зависимости для рендеринга
+pyglet>=2.0.0
+pyopengl>=3.1.0
+matplotlib>=3.0.0

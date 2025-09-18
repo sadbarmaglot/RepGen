@@ -2,11 +2,12 @@ import os
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.table import _Row, _Column
-from docx.shared import Inches
+from docx.shared import Inches, Pt
 
 from settings import (
     ALIGN_CENTER,
     ALIGN_LEFT,
+    ALIGN_JUSTIFY,
     FIRST_LINE_INDENT,
     PAGE_LINE_SPACING,
     PAGE_RIGHT_INDENT,
@@ -26,7 +27,12 @@ from settings import (
     CONCLUSION_TABLE_HEAD_TEXTS,
     CONCLUSION_TABLE_HEAD_FONT_SIZE,
     CONCLUSION_TABLE_COLUMN_WIDTHS,
-    CONCLUSION_TABLE_SUBHEAD_TEXTS
+    CONCLUSION_TABLE_SUBHEAD_TEXTS,
+    WEAR_TABLE_HEAD_TEXTS,
+    WEAR_TABLE_HEAD_FONT_SIZE,
+    WEAR_TABLE_COLUMN_WIDTHS,
+    WEAR_TABLE_SUBHEAD_TEXTS,
+    WEAR_TABLE_SUBHEAD_FONT_SIZE
 )
 
 
@@ -279,3 +285,137 @@ def conclusion_table(doc, data, ncols, nrows, style="Table Grid"):
                   CONCLUSION_TABLE_COLUMN_WIDTHS,
                   ALIGN_LEFT
                   )
+
+
+def wear_table(doc, data, ncols, nrows, style="Table Grid"):
+    # Добавляем название таблицы
+    table_title = doc.add_paragraph()
+    table_title.alignment = ALIGN_CENTER
+    table_title_run = table_title.add_run("Таблица П5.9.")
+    table_title_run.font.name = COMMON_FONT
+    table_title_run.font.size = Pt(14)
+    table_title_run.font.bold = True
+    
+    # create new table
+    table = doc.add_table(rows=nrows + len(data), cols=ncols, style=style)
+
+    # set up head
+    head_row = table.rows[0]
+    set_up_entity(head_row,
+                  WEAR_TABLE_HEAD_TEXTS,
+                  COMMON_FONT,
+                  WEAR_TABLE_HEAD_FONT_SIZE,
+                  True,
+                  WEAR_TABLE_COLUMN_WIDTHS,
+                  ALIGN_CENTER
+                  )
+
+    # set up subhead
+    subhead_row = table.rows[1]
+    set_up_entity(subhead_row,
+                  WEAR_TABLE_SUBHEAD_TEXTS,
+                  COMMON_FONT,
+                  WEAR_TABLE_SUBHEAD_FONT_SIZE,
+                  False,
+                  WEAR_TABLE_COLUMN_WIDTHS,
+                  ALIGN_CENTER
+                  )
+
+    # merge cells for the third column header
+    head_row.cells[2].merge(head_row.cells[3])
+
+    # set up the rest rows
+    for n, row in enumerate(table.rows[2:]):
+        row_data = data[n]
+        set_up_entity(row,
+                      row_data,
+                      COMMON_FONT,
+                      WEAR_TABLE_SUBHEAD_FONT_SIZE,
+                      False,
+                      WEAR_TABLE_COLUMN_WIDTHS,
+                      ALIGN_CENTER
+                      )
+
+
+def add_wear_text(doc):
+    """Добавляет текст о методике оценки физического износа"""
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = ALIGN_JUSTIFY
+    paragraph.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    paragraph.paragraph_format.line_spacing = PAGE_LINE_SPACING
+    
+    text = ("Физический износ здания оценивается в соответствии с ВСН 53-86(р), который содержит таблицы показателей "
+            "износа по каждому конструктивному элементу, виду инженерного оборудования и отделке. Эти показатели "
+            "определяются при визуальном и инструментальном обследовании и проявляются в виде внешних признаков "
+            "определенных дефектов на различных стадиях их развития.")
+    
+    run = paragraph.add_run(text)
+    run.font.name = COMMON_FONT
+    run.font.size = Pt(14)
+    
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = ALIGN_JUSTIFY
+    paragraph.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    paragraph.paragraph_format.line_spacing = PAGE_LINE_SPACING
+    
+    text = ("Указанные проценты условно характеризуют степень физического износа как отношение стоимости ремонтных "
+            "работ, необходимых для устранения дефектов, к стоимости замены элемента здания. Физический износ "
+            "конструкции, элемента или системы с различной степенью износа на отдельных участках определяется как "
+            "сумма показателей износа этих участков, взвешенная по их удельному весу в общем объеме соответствующих "
+            "конструкций или элементов.")
+    
+    run = paragraph.add_run(text)
+    run.font.name = COMMON_FONT
+    run.font.size = Pt(14)
+    
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = ALIGN_JUSTIFY
+    paragraph.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    paragraph.paragraph_format.line_spacing = PAGE_LINE_SPACING
+    
+    text = ("Общий физический износ здания (общий износ) определяется суммированием степеней износа его отдельных "
+            "элементов, взвешенных по удельному весу их стоимости в общей восстановительной стоимости здания, "
+            "что представлено в таблице П5.9.")
+    
+    run = paragraph.add_run(text)
+    run.font.name = COMMON_FONT
+    run.font.size = Pt(14)
+    
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = ALIGN_JUSTIFY
+    paragraph.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    paragraph.paragraph_format.line_spacing = PAGE_LINE_SPACING
+    
+    text = ("Физический износ здания определяется с использованием удельных весов отдельных конструктивных элементов "
+            "в процентах, установленных в приложении к таблице 3 раздела 1 (Лечебно-профилактические учреждения) "
+            "Сборника №31 (Здания здравоохранения) «Укрупненные показатели восстановительной стоимости зданий для "
+            "переоценки основных фондов». Капитальная группа I.")
+    
+    run = paragraph.add_run(text)
+    run.font.name = COMMON_FONT
+    run.font.size = Pt(14)
+
+
+def add_wear_conclusion(doc, total_wear_percentage=32):
+    """Добавляет заключение по физическому износу"""
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = ALIGN_LEFT
+    paragraph.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    paragraph.paragraph_format.line_spacing = PAGE_LINE_SPACING
+    
+    # Добавляем заголовок "Вывод"
+    conclusion_title = paragraph.add_run("Вывод: ")
+    conclusion_title.font.name = COMMON_FONT
+    conclusion_title.font.size = Pt(14)
+    conclusion_title.font.bold = True
+    
+    text = f"физический износ здания в соответствии с ВСН 53-86(р) составляет {total_wear_percentage}%. "
+    if total_wear_percentage > 30:
+        text += "Здание нуждается в проведении капитального ремонта."
+    else:
+        text += "Здание находится в удовлетворительном состоянии."
+    
+    run = paragraph.add_run(text)
+    run.font.name = COMMON_FONT
+    run.font.size = Pt(14)
+    run.font.bold = False

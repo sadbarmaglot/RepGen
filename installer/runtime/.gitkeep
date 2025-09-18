@@ -1,0 +1,10 @@
+# Эта папка предназначена для размещения дополнительных зависимостей
+
+# Например, для Visual C++ Redistributable:
+# vcredist_x64.exe - скачайте с официального сайта Microsoft
+# https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+
+# Для других зависимостей:
+# dotnet-runtime-6.0.0.exe
+# java-runtime-installer.exe
+# и т.д.

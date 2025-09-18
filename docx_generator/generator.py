@@ -10,6 +10,9 @@ from docx_generator.docx_utils import (
     constractive_decisions_table,
     defects_table,
     conclusion_table,
+    wear_table,
+    add_wear_text,
+    add_wear_conclusion
 )
 from settings import (
     HEADER_TEXT,
@@ -35,7 +38,10 @@ from settings import (
     CONCLUSION_TABLE_NUM_COLS,
     CONCLUSION_TABLE_NUM_ROWS,
     TITLE_3,
-    JOB_MAPPING
+    JOB_MAPPING,
+    DEFAULT_WEAR_ELEMENTS,
+    WEAR_TABLE_NUM_COLS,
+    WEAR_TABLE_NUM_ROWS
 )
 
 
@@ -63,10 +69,15 @@ def generate_full_report(user_data: dict) -> BytesIO:
         BODY_TEXT_1_4
     )
 
-    constructions = [
-        [row["construction"], row["description"]]
-        for row in user_data.get("Page3", {}).get("constructions", [])
-    ]
+    # Получаем данные конструктивных решений или используем данные по умолчанию
+    user_constructions = user_data.get("Page3", {}).get("constructions", [])
+    if user_constructions:
+        constructions = [
+            [row["construction"], row["description"]]
+            for row in user_constructions
+        ]
+    else:
+        constructions = user_data.get("constructive_decisions", DEFAULT_CONSTRUCTIVE_DECISIONS)
 
     defects = [
         [row.get("defect", ""), "", row.get("image_path", ""), row.get("eliminating_method", "")]
@@ -99,8 +110,26 @@ def generate_full_report(user_data: dict) -> BytesIO:
     head_1_2 = add_paragraph(doc=doc, style=heading_style_2, first_line_indent=0)
     add_run(head_1_2, TITLE_1_2, COMMON_FONT, MAIN_FONT_SIZE, bold=True)
 
-    # Таблица конструкций
+    # Таблица конструктивных решений
     constractive_decisions_table(doc, constructions, CD_TABLE_NUM_COLS, CD_TABLE_NUM_ROWS)
+    
+    # Добавляем пустую строку
+    doc.add_paragraph()
+    
+    # Добавляем раздел по физическому износу
+    wear_title = add_paragraph(doc=doc, style=heading_style_2, first_line_indent=0)
+    add_run(wear_title, "1.3. Оценка физического износа здания", COMMON_FONT, MAIN_FONT_SIZE, bold=True)
+    
+    # Добавляем текст о методике оценки
+    add_wear_text(doc)
+    
+    # Таблица физического износа
+    wear_data = user_data.get("wear_elements", DEFAULT_WEAR_ELEMENTS)
+    wear_table(doc, wear_data, WEAR_TABLE_NUM_COLS, WEAR_TABLE_NUM_ROWS)
+    
+    # Добавляем заключение по износу
+    total_wear = user_data.get("total_wear_percentage", 32)
+    add_wear_conclusion(doc, total_wear)
 
     # Таблица дефектов (страница 4)
     if defects:

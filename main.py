@@ -1,47 +1,107 @@
-import asyncio
-import logging
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Запуск современного интерфейса ИИ-Инженера
+"""
 
-from aiogram import Bot, Dispatcher, F
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart, StateFilter, Command
-from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+import sys
+import os
+from pathlib import Path
 
-from common.whitelist_utils import load_whitelist
-from core.handlers import BotHandlers
-from core.photo_manager import PhotoManager
-from settings import DefectStates, BOT_TOKEN
+# Добавляем корневую папку проекта в sys.path
+root_dir = Path(__file__).parent
+sys.path.insert(0, str(root_dir))
 
-handlers = BotHandlers(
-    whitelist=load_whitelist(),
-)
+def check_dependencies():
+    """Проверка наличия необходимых зависимостей"""
+    required_packages = [
+        ('tkinter', 'tkinter'),
+        ('PIL', 'Pillow'),
+        ('openai', 'openai'),
+    ]
+    
+    missing_packages = []
+    
+    for package_import, package_name in required_packages:
+        try:
+            __import__(package_import)
+        except ImportError:
+            missing_packages.append(package_name)
+    
+    if missing_packages:
+        print("❌ Отсутствуют необходимые пакеты:")
+        for package in missing_packages:
+            print(f"   - {package}")
+        print("\nУстановите их командой:")
+        print(f"pip install {' '.join(missing_packages)}")
+        return False
+    
+    return True
 
-photo_manager = PhotoManager()
+def check_openai_key():
+    """Проверка наличия API ключа OpenAI"""
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        print("❌ Не найден API ключ OpenAI!")
+        print("Установите переменную окружения OPENAI_API_KEY")
+        print("Или создайте файл .env с содержимым:")
+        print("OPENAI_API_KEY=your_api_key_here")
+        return False
+    return True
 
-async def cancel_cmd(message: Message, state: FSMContext):
-    photo_manager.cancel_chat_tasks(message.chat.id)
-    await handlers.cancel_cmd(message, state)
+def setup_environment():
+    """Настройка окружения приложения"""
+    # Загружаем .env файл если есть
+    env_file = root_dir / '.env'
+    if env_file.exists():
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(env_file)
+            print("✅ Загружен .env файл")
+        except ImportError:
+            print("⚠️ python-dotenv не установлен, используем системные переменные")
+    
+    # Проверяем API ключ
+    return check_openai_key()
 
-async def start_defects(callback: CallbackQuery, state: FSMContext):
-    photo_manager.cancel_chat_tasks(callback.message.chat.id)
-    await handlers.start_defects(callback, state)
-
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher()
-
-    dp.message.register(handlers.start_cmd, CommandStart())
-    dp.message.register(handlers.cancel_cmd, Command("cancel"))
-    dp.message.register(photo_manager.handle_photo, F.photo, StateFilter(DefectStates.uploading))
-    dp.callback_query.register(handlers.list_users_callback, F.data == "list_users")
-    dp.callback_query.register(handlers.request_access_callback, F.data == "request_access")
-    dp.callback_query.register(handlers.approve_callback, F.data.startswith("approve:"))
-    dp.callback_query.register(handlers.deny_callback, F.data.startswith("deny:"))
-    dp.callback_query.register(start_defects, F.data == "start_defects")
-
-    await dp.start_polling(bot)
+def main():
+    """Главная функция приложения"""
+    print("🏗️ Запуск современного ИИ-Инженера...")
+    
+    # Проверяем зависимости
+    if not check_dependencies():
+        input("Нажмите Enter для выхода...")
+        return 1
+    
+    # Настраиваем окружение
+    if not setup_environment():
+        input("Нажмите Enter для выхода...")
+        return 1
+    
+    try:
+        # Импортируем и запускаем приветственное окно
+        from ui.welcome_window import WelcomeWindow
+        
+        print("✅ Запуск современного интерфейса...")
+        app = WelcomeWindow()
+        app.run()
+        
+        print("👋 Приложение закрыто")
+        return 0
+        
+    except ImportError as e:
+        print(f"❌ Ошибка импорта: {e}")
+        print("Убедитесь что все файлы приложения на месте")
+        input("Нажмите Enter для выхода...")
+        return 1
+        
+    except Exception as e:
+        print(f"❌ Критическая ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+        input("Нажмите Enter для выхода...")
+        return 1
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(main())
+

@@ -1,16 +1,7 @@
-name: Deploy to GCP VM and Build Windows Installer
+name: Build Windows Installer
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-    # paths:
-    #   - "core/**"
-    #   - "docx_generator/**"
-    #   - "Dockerfile"
-    #   - "docker-compose.yml"
+  # Запуск по команде в GitHub Actions
   workflow_dispatch:
     inputs:
       app_version:
@@ -18,10 +9,14 @@ on:
         required: false
         type: string
         default: ''
+  
+  # Автоматический запуск при пуше в main или создании релизного тега
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
 
 jobs:
-  
-
   build-installer:
     runs-on: windows-latest
     
