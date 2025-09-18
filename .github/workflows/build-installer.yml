@@ -201,6 +201,8 @@ jobs:
         if (Test-Path $issFile) {
           # Обновляем версию в iss файле
           $content = Get-Content $issFile -Raw
+          echo "Исходная версия AppVersion: $version"
+          
           $content = $content -replace '#define AppVersion "[^"]*"', "#define AppVersion `"$version`""
           
           # Формируем версию для VersionInfoVersion (должна быть в формате X.Y.Z.W)
@@ -211,8 +213,18 @@ jobs:
             $versionInfoVersion = "1.0.0.0"
           }
           
+          echo "Сформированная VersionInfoVersion: $versionInfoVersion"
+          
+          # Показываем текущее значение VersionInfoVersion
+          $currentVersionInfo = ($content | Select-String 'VersionInfoVersion=.*').Matches[0].Value
+          echo "Текущее значение VersionInfoVersion: $currentVersionInfo"
+          
           # Обновляем VersionInfoVersion
-          $content = $content -replace 'VersionInfoVersion=\d+\.\d+\.\d+\.\d+', "VersionInfoVersion=$versionInfoVersion"
+          $content = $content -replace 'VersionInfoVersion=.*', "VersionInfoVersion=$versionInfoVersion"
+          
+          # Показываем новое значение
+          $newVersionInfo = ($content | Select-String 'VersionInfoVersion=.*').Matches[0].Value
+          echo "Новое значение VersionInfoVersion: $newVersionInfo"
           
           Set-Content $issFile -Value $content -Encoding UTF8
           echo "✅ Версия обновлена в $issFile до $version"
