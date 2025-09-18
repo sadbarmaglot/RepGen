@@ -112,34 +112,71 @@ jobs:
           New-Item -ItemType Directory -Path "build\win" -Force
         }
         
+        # Проверяем наличие необходимых файлов
+        echo "Проверяем наличие файлов..."
+        if (-not (Test-Path "main.py")) {
+          echo "❌ main.py не найден!"
+          exit 1
+        }
+        
+        if (-not (Test-Path "assets\icon.ico")) {
+          echo "⚠️ assets\icon.ico не найден, используем без иконки"
+          $iconParam = ""
+        } else {
+          echo "✅ Иконка найдена: assets\icon.ico"
+          $iconParam = "--icon=assets\icon.ico"
+        }
+        
         # Собираем через PyInstaller
         echo "Запускаем PyInstaller..."
-        pyinstaller --onefile --windowed --name=DefectAnalyzer --icon=assets/icon.ico `
-          --add-data "ui;ui" `
-          --add-data "common;common" `
-          --add-data "docx_generator;docx_generator" `
-          --add-data "adapters;adapters" `
-          --add-data "assets;assets" `
-          --add-data "examples;examples" `
-          --add-data "settings.py;." `
-          --hidden-import=tkinter `
-          --hidden-import=tkinter.ttk `
-          --hidden-import=tkinter.messagebox `
-          --hidden-import=tkinter.filedialog `
-          --hidden-import=PIL `
-          --hidden-import=PIL.Image `
-          --hidden-import=PIL.ImageTk `
-          --hidden-import=openai `
-          --hidden-import=pathlib `
-          --hidden-import=threading `
-          --hidden-import=json `
-          --hidden-import=logging `
-          --hidden-import=requests `
-          --hidden-import=docx `
-          --hidden-import=dotenv `
-          --hidden-import=trimesh `
-          --hidden-import=numpy `
-          main.py
+        $pyinstallerArgs = @(
+          "--onefile",
+          "--windowed",
+          "--name=DefectAnalyzer"
+        )
+        
+        if ($iconParam) {
+          $pyinstallerArgs += $iconParam
+        }
+        
+        $pyinstallerArgs += @(
+          "--add-data", "ui;ui",
+          "--add-data", "common;common", 
+          "--add-data", "docx_generator;docx_generator",
+          "--add-data", "adapters;adapters",
+          "--add-data", "assets;assets",
+          "--add-data", "examples;examples",
+          "--add-data", "settings.py;.",
+          "--hidden-import=tkinter",
+          "--hidden-import=tkinter.ttk",
+          "--hidden-import=tkinter.messagebox",
+          "--hidden-import=tkinter.filedialog",
+          "--hidden-import=PIL",
+          "--hidden-import=PIL.Image",
+          "--hidden-import=PIL.ImageTk",
+          "--hidden-import=openai",
+          "--hidden-import=pathlib",
+          "--hidden-import=threading",
+          "--hidden-import=json",
+          "--hidden-import=logging",
+          "--hidden-import=requests",
+          "--hidden-import=docx",
+          "--hidden-import=dotenv",
+          "--hidden-import=trimesh",
+          "--hidden-import=numpy",
+          "main.py"
+        )
+        
+        echo "Аргументы PyInstaller:"
+        $pyinstallerArgs | ForEach-Object { echo "  $_" }
+        
+        & pyinstaller @pyinstallerArgs
+        
+        if ($LASTEXITCODE -ne 0) {
+          echo "❌ Ошибка PyInstaller! Код выхода: $LASTEXITCODE"
+          echo "Проверьте логи выше для деталей"
+          exit 1
+        }
         
         # Копируем собранный файл в build/win
         if (Test-Path "dist\DefectAnalyzer.exe") {
