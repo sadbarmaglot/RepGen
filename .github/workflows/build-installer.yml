@@ -1,4 +1,4 @@
-name: Build Windows Installer
+name: Build Windows Installer v2
 
 on:
   # Запуск по команде в GitHub Actions
@@ -21,6 +21,14 @@ jobs:
     runs-on: windows-latest
     
     steps:
+    - name: 🧹 Clean workspace
+      run: |
+        echo "Очищаем рабочую область..."
+        if (Test-Path "build") { Remove-Item "build" -Recurse -Force }
+        if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force }
+        if (Test-Path "*.spec") { Remove-Item "*.spec" -Force }
+        echo "Рабочая область очищена"
+    
     - name: 📥 Checkout repository
       uses: actions/checkout@v4
       with:
