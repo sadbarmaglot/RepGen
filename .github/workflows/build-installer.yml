@@ -77,21 +77,8 @@ jobs:
           echo "Создана папка build\win"
         }
         
-        # Проверяем наличие готового приложения
-        $exeFiles = Get-ChildItem -Path "build\win" -Filter "*.exe" -Recurse
-        if ($exeFiles.Count -eq 0) {
-          echo "⚠️ ВНИМАНИЕ: Не найдено exe файлов в build\win\"
-          echo "Убедитесь, что приложение собрано и находится в правильной папке"
-          echo "Ожидаемая структура:"
-          echo "  build\win\DefectAnalyzer.exe"
-          echo "  build\win\[другие файлы и папки]"
-        } else {
-          echo "✅ Найдены exe файлы:"
-          $exeFiles | ForEach-Object { echo "  - $($_.FullName)" }
-        }
-        
-        # Показываем содержимое build/win
-        echo "Содержимое build\win\:"
+        # Показываем содержимое build/win (для информации)
+        echo "Содержимое build\win\ (перед сборкой):"
         Get-ChildItem -Path "build\win" -Recurse | ForEach-Object { echo "  $($_.FullName)" }
     
     - name: 🔨 Build Windows application
