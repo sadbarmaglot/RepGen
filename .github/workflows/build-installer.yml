@@ -94,40 +94,64 @@ jobs:
         echo "Содержимое build\win\:"
         Get-ChildItem -Path "build\win" -Recurse | ForEach-Object { echo "  $($_.FullName)" }
     
-    - name: 🔨 Build Windows application (if needed)
+    - name: 🔨 Build Windows application
       run: |
-        echo "Проверяем, нужно ли собирать приложение..."
+        echo "Собираем Windows приложение..."
         
-        # Если в build/win нет exe файлов, пытаемся собрать
-        $exeFiles = Get-ChildItem -Path "build\win" -Filter "*.exe" -Recurse
-        if ($exeFiles.Count -eq 0) {
-          echo "Собираем приложение..."
+        # Устанавливаем Python зависимости
+        python --version
+        pip --version
+        
+        # Устанавливаем зависимости
+        echo "Устанавливаем зависимости..."
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+        # Создаем папку для сборки
+        if (-not (Test-Path "build\win")) {
+          New-Item -ItemType Directory -Path "build\win" -Force
+        }
+        
+        # Собираем через PyInstaller
+        echo "Запускаем PyInstaller..."
+        pyinstaller --onefile --windowed --name=DefectAnalyzer --icon=assets/icon.ico `
+          --add-data "ui;ui" `
+          --add-data "common;common" `
+          --add-data "docx_generator;docx_generator" `
+          --add-data "adapters;adapters" `
+          --add-data "assets;assets" `
+          --add-data "examples;examples" `
+          --add-data "settings.py;." `
+          --hidden-import=tkinter `
+          --hidden-import=tkinter.ttk `
+          --hidden-import=tkinter.messagebox `
+          --hidden-import=tkinter.filedialog `
+          --hidden-import=PIL `
+          --hidden-import=PIL.Image `
+          --hidden-import=PIL.ImageTk `
+          --hidden-import=openai `
+          --hidden-import=pathlib `
+          --hidden-import=threading `
+          --hidden-import=json `
+          --hidden-import=logging `
+          --hidden-import=requests `
+          --hidden-import=docx `
+          --hidden-import=dotenv `
+          --hidden-import=trimesh `
+          --hidden-import=numpy `
+          main.py
+        
+        # Копируем собранный файл в build/win
+        if (Test-Path "dist\DefectAnalyzer.exe") {
+          Copy-Item "dist\DefectAnalyzer.exe" "build\win\" -Force
+          echo "✅ DefectAnalyzer.exe скопирован в build\win\"
           
-          # Устанавливаем Python если нужно
-          python --version
-          pip --version
-          
-          # Устанавливаем зависимости
-          if (Test-Path "requirements.txt") {
-            echo "Устанавливаем зависимости из requirements.txt..."
-            pip install -r requirements.txt
-          }
-          
-          # Пытаемся собрать через PyInstaller
-          if (Test-Path "build_exe.py") {
-            echo "Запускаем сборку через build_exe.py..."
-            python build_exe.py
-          } elseif (Test-Path "main.py") {
-            echo "Запускаем PyInstaller напрямую..."
-            pyinstaller --onefile --windowed --name=DefectAnalyzer --icon=assets/icon.ico main.py
-            # Копируем собранный файл в build/win
-            if (Test-Path "dist\DefectAnalyzer.exe") {
-              Copy-Item "dist\DefectAnalyzer.exe" "build\win\" -Force
-              echo "Скопирован DefectAnalyzer.exe в build\win\"
-            }
-          }
+          # Показываем информацию о файле
+          $fileInfo = Get-Item "build\win\DefectAnalyzer.exe"
+          echo "Размер файла: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
         } else {
-          echo "✅ Приложение уже собрано, пропускаем сборку"
+          echo "❌ DefectAnalyzer.exe не найден в папке dist\"
+          exit 1
         }
     
     - name: 📝 Update installer script version
