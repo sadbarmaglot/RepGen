@@ -258,6 +258,22 @@ jobs:
           Set-Content $issFile -Value $content -Encoding UTF8
           echo "✅ Версия обновлена в $issFile до $version"
           echo "✅ VersionInfoVersion установлена в $versionInfoVersion"
+          
+          # Проверяем, что файл действительно обновился
+          echo "Проверяем финальное содержимое файла:"
+          $finalContent = Get-Content $issFile -Raw
+          $finalVersionInfo = ($finalContent | Select-String 'VersionInfoVersion=.*').Matches[0].Value
+          echo "Финальное значение VersionInfoVersion: $finalVersionInfo"
+          
+          # Проверяем, что версия валидна (только цифры и точки)
+          if ($finalVersionInfo -match 'VersionInfoVersion=(\d+\.\d+\.\d+\.\d+)') {
+            echo "✅ VersionInfoVersion имеет правильный формат: $($matches[1])"
+          } else {
+            echo "❌ VersionInfoVersion имеет неправильный формат: $finalVersionInfo"
+            echo "Показываем контекст вокруг VersionInfoVersion:"
+            $context = ($finalContent | Select-String -Pattern 'VersionInfoVersion=.*' -Context 2,2).Line
+            $context | ForEach-Object { echo "  $_" }
+          }
         } else {
           echo "❌ Файл $issFile не найден!"
           exit 1
@@ -266,6 +282,32 @@ jobs:
     - name: 🔧 Compile installer with Inno Setup
       run: |
         echo "Компилируем установщик с помощью Inno Setup..."
+        
+        # Проверяем содержимое iss файла перед компиляцией
+        $issFile = "installer\windows\DefectAnalyzer.iss"
+        if (Test-Path $issFile) {
+          echo "Проверяем содержимое $issFile перед компиляцией:"
+          $content = Get-Content $issFile -Raw
+          $versionInfo = ($content | Select-String 'VersionInfoVersion=.*').Matches[0].Value
+          echo "VersionInfoVersion в файле: $versionInfo"
+          
+          # Проверяем валидность
+          if ($versionInfo -match 'VersionInfoVersion=(\d+\.\d+\.\d+\.\d+)') {
+            echo "✅ VersionInfoVersion валидна: $($matches[1])"
+          } else {
+            echo "❌ VersionInfoVersion невалидна: $versionInfo"
+            echo "Показываем строки вокруг VersionInfoVersion:"
+            $lines = Get-Content $issFile
+            for ($i = 0; $i -lt $lines.Length; $i++) {
+              if ($lines[$i] -match 'VersionInfoVersion') {
+                echo "Строка $($i+1): $($lines[$i])"
+                if ($i -gt 0) { echo "Строка $($i): $($lines[$i-1])" }
+                if ($i -lt $lines.Length-1) { echo "Строка $($i+2): $($lines[$i+1])" }
+                break
+              }
+            }
+          }
+        }
         
         $issFile = "installer\windows\DefectAnalyzer.iss"
         $isccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
