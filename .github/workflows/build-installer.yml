@@ -165,8 +165,21 @@ jobs:
           # Обновляем версию в iss файле
           $content = Get-Content $issFile -Raw
           $content = $content -replace '#define AppVersion "[^"]*"', "#define AppVersion `"$version`""
+          
+          # Формируем версию для VersionInfoVersion (должна быть в формате X.Y.Z.W)
+          $versionParts = $version -split '\.'
+          if ($versionParts.Length -eq 3) {
+            $versionInfoVersion = "$($versionParts[0]).$($versionParts[1]).$($versionParts[2]).0"
+          } else {
+            $versionInfoVersion = "1.0.0.0"
+          }
+          
+          # Обновляем VersionInfoVersion
+          $content = $content -replace 'VersionInfoVersion=\d+\.\d+\.\d+\.\d+', "VersionInfoVersion=$versionInfoVersion"
+          
           Set-Content $issFile -Value $content -Encoding UTF8
           echo "✅ Версия обновлена в $issFile до $version"
+          echo "✅ VersionInfoVersion установлена в $versionInfoVersion"
         } else {
           echo "❌ Файл $issFile не найден!"
           exit 1
