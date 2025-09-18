@@ -71,7 +71,7 @@
    build_windows_local.bat
    ```
 
-#### Вариант C: Ручная сборка
+#### Вариант C: Ручная сборка с отладкой
 
 1. **Создайте виртуальное окружение:**
    ```cmd
@@ -81,17 +81,30 @@
 
 2. **Установите зависимости:**
    ```cmd
+   pip install --upgrade pip
    pip install -r requirements.txt
    pip install pyinstaller
    ```
 
-3. **Соберите приложение:**
+3. **Проверьте зависимости:**
    ```cmd
-   python build_exe.py
+   python -c "import tkinter; print('tkinter OK')"
+   python -c "import PIL; print('PIL OK')"
+   python -c "import openai; print('openai OK')"
+   python -c "import requests; print('requests OK')"
+   python -c "import docx; print('docx OK')"
+   python -c "import trimesh; print('trimesh OK')"
+   python -c "import numpy; print('numpy OK')"
    ```
 
-4. **Результат:**
+4. **Соберите приложение с отладкой:**
+   ```cmd
+   pyinstaller --log-level=DEBUG --onefile --windowed --name=DefectAnalyzer --icon=assets\icon.ico --add-data "ui;ui" --add-data "common;common" --add-data "docx_generator;docx_generator" --add-data "adapters;adapters" --add-data "assets;assets" --add-data "examples;examples" --add-data "settings.py;." --hidden-import=tkinter --hidden-import=tkinter.ttk --hidden-import=tkinter.messagebox --hidden-import=tkinter.filedialog --hidden-import=PIL --hidden-import=PIL.Image --hidden-import=PIL.ImageTk --hidden-import=openai --hidden-import=pathlib --hidden-import=threading --hidden-import=json --hidden-import=logging --hidden-import=requests --hidden-import=docx --hidden-import=dotenv --hidden-import=trimesh --hidden-import=numpy main.py
+   ```
+
+5. **Результат:**
    - EXE файл: `dist\DefectAnalyzer.exe`
+   - Лог файл: `pyinstaller.log` (для отладки)
 
 ### 3️⃣ Сборка на macOS/Linux для Windows
 

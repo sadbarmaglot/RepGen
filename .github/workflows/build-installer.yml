@@ -115,20 +115,82 @@ jobs:
           New-Item -ItemType Directory -Path "build\win" -Force
         }
         
-        # Проверяем наличие необходимых файлов
-        echo "Проверяем наличие файлов..."
-        if (-not (Test-Path "main.py")) {
-          echo "❌ main.py не найден!"
-          exit 1
+        # Проверяем наличие необходимых файлов и папок
+        echo "Проверяем структуру проекта..."
+        
+        $requiredFiles = @("main.py", "settings.py", "requirements.txt")
+        $requiredDirs = @("ui", "adapters", "common", "docx_generator", "assets")
+        
+        foreach ($file in $requiredFiles) {
+          if (Test-Path $file) {
+            echo "✅ $file найден"
+          } else {
+            echo "❌ $file не найден!"
+            exit 1
+          }
         }
+        
+        foreach ($dir in $requiredDirs) {
+          if (Test-Path $dir) {
+            echo "✅ папка $dir найдена"
+          } else {
+            echo "❌ папка $dir не найдена!"
+            exit 1
+          }
+        }
+        
+        echo "Структура проекта корректна"
         
         # Проверяем Python модули
         echo "Проверяем Python модули..."
-        python -c "import tkinter; print('✅ tkinter OK')"
-        python -c "import PIL; print('✅ PIL OK')"
-        python -c "import openai; print('✅ openai OK')"
-        python -c "import requests; print('✅ requests OK')"
-        python -c "import docx; print('✅ docx OK')"
+        try {
+          python -c "import tkinter; print('✅ tkinter OK')"
+        } catch {
+          echo "❌ tkinter не найден - это критическая ошибка!"
+          exit 1
+        }
+        
+        try {
+          python -c "import PIL; print('✅ PIL OK')"
+        } catch {
+          echo "❌ PIL не найден!"
+          pip install Pillow
+        }
+        
+        try {
+          python -c "import openai; print('✅ openai OK')"
+        } catch {
+          echo "❌ openai не найден!"
+          exit 1
+        }
+        
+        try {
+          python -c "import requests; print('✅ requests OK')"
+        } catch {
+          echo "❌ requests не найден!"
+          exit 1
+        }
+        
+        try {
+          python -c "import docx; print('✅ docx OK')"
+        } catch {
+          echo "❌ docx не найден!"
+          exit 1
+        }
+        
+        try {
+          python -c "import trimesh; print('✅ trimesh OK')"
+        } catch {
+          echo "❌ trimesh не найден!"
+          exit 1
+        }
+        
+        try {
+          python -c "import numpy; print('✅ numpy OK')"
+        } catch {
+          echo "❌ numpy не найден!"
+          exit 1
+        }
         
         echo "Все модули проверены успешно"
         
@@ -183,10 +245,21 @@ jobs:
         echo "Аргументы PyInstaller:"
         $pyinstallerArgs | ForEach-Object { echo "  $_" }
         
-        echo "Запускаем PyInstaller..."
-        & pyinstaller @pyinstallerArgs
+        echo "Запускаем PyInstaller с подробным логированием..."
+        
+        # Создаем лог файл для PyInstaller
+        $logFile = "pyinstaller.log"
+        
+        # Запускаем PyInstaller с отладкой
+        & pyinstaller @pyinstallerArgs --log-level=DEBUG 2>&1 | Tee-Object -FilePath $logFile
         
         echo "PyInstaller завершился с кодом: $LASTEXITCODE"
+        
+        # Показываем содержимое лога
+        if (Test-Path $logFile) {
+          echo "Последние 50 строк лога PyInstaller:"
+          Get-Content $logFile -Tail 50 | ForEach-Object { echo "  $_" }
+        }
         
         if ($LASTEXITCODE -ne 0) {
           echo "❌ Ошибка PyInstaller! Код выхода: $LASTEXITCODE"
