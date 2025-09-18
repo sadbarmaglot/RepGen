@@ -56,7 +56,7 @@ jobs:
             
             # Если версия не найдена, используем дефолтную
             if [ -z "$VERSION" ]; then
-              VERSION="0.1.0-dev"
+              VERSION="1.0.0"
               echo "Версия не найдена, используем дефолтную: $VERSION"
             else
               echo "Найдена версия в .env: $VERSION"
@@ -239,10 +239,18 @@ jobs:
           
           $content = $content -replace '#define AppVersion "[^"]*"', "#define AppVersion `"$version`""
           
+          # Очищаем версию от недопустимых символов для VersionInfoVersion
+          $cleanVersion = $version -replace '[^0-9.]', ''
+          echo "Очищенная версия: $cleanVersion"
+          
           # Формируем версию для VersionInfoVersion (должна быть в формате X.Y.Z.W)
-          $versionParts = $version -split '\.'
-          if ($versionParts.Length -eq 3) {
-            $versionInfoVersion = "$($versionParts[0]).$($versionParts[1]).$($versionParts[2]).0"
+          $versionParts = $cleanVersion -split '\.'
+          if ($versionParts.Length -ge 3) {
+            # Берем первые 3 части версии
+            $major = if ($versionParts[0]) { $versionParts[0] } else { "0" }
+            $minor = if ($versionParts[1]) { $versionParts[1] } else { "0" }
+            $patch = if ($versionParts[2]) { $versionParts[2] } else { "0" }
+            $versionInfoVersion = "$major.$minor.$patch.0"
           } else {
             $versionInfoVersion = "1.0.0.0"
           }
