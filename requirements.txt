@@ -1,5 +1,56 @@
 aiogram==3.21.0
-python-dotenv==1.1.1
 python-docx==1.2.0
+
+# FastAPI и сервер
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+
+# Gradio для веб-интерфейса
+gradio==5.44.0
+
+# Работа с изображениями
+Pillow==11.3.0
+
+# HTTP клиент
+aiohttp==3.9.1
+httpx==0.28.1
+requests==2.31.0
+
+# OpenAI API
 openai==1.97.1
-google-cloud-storage==3.1.0
+
+# Google Cloud Storage
+google-cloud-storage==3.3.0
+
+google-genai==1.31.0
+
+# Валидация данных
+pydantic[email]==2.5.0
+pydantic-settings==2.1.0
+
+# Логирование и утилиты
+python-dotenv==1.1.1
+python-json-logger==2.0.7
+
+# Асинхронность
+asyncio-mqtt==0.16.1
+
+# База данных
+sqlalchemy[asyncio]==2.0.43
+asyncpg==0.29.0
+alembic==1.16.5
+
+# Аутентификация
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+python-multipart==0.0.20
+
+# Redis
+redis==5.2.0
+
+# Разработка
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0

@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   bot:
     build: .
@@ -8,4 +7,69 @@ services:
     volumes:
       - ./secrets:/app/secrets:ro
       - ./whitelist.json:/app/whitelist.json
-    restart: unless-stopped 
+    restart: unless-stopped
+  defect-analysis-api:
+    build: .
+    container_name: defect-analysis-api
+    volumes:
+      - ./secrets:/app/secrets:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/autogen-1-438415-c7daf6f82696.json
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+      - SQL_DB=${SQL_DB}
+      - SQL_HOST=${SQL_HOST}
+      - SQL_PORT=${SQL_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - defect-analysis-network
+    depends_on:
+      - db
+      - redis
+    command: ["python", "main.py"]
+  gradio-interface:
+    build: .
+    container_name: repgen-gradio
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ./api:/app/api:ro
+      - ./common:/app/common:ro
+      - ./settings.py:/app/settings.py:ro
+    restart: unless-stopped
+    networks:
+      - defect-analysis-network
+    command: ["python", "gradio_interface.py"]
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${SQL_USER}
+      POSTGRES_PASSWORD: ${SQL_PASSWORD}
+      POSTGRES_DB: ${SQL_DB}
+    volumes:
+      - ${PATH_PG_DATA}:/var/lib/postgresql/data
+    networks:
+      - defect-analysis-network
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - defect-analysis-network
+
+networks:
+  defect-analysis-network:
+    driver: bridge
+
+volumes:
+  redis_data:

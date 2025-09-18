@@ -19,7 +19,7 @@ from openai import OpenAI, RateLimitError
 from aiogram.fsm.context import FSMContext
 
 from common.gc_utils import upload_to_gcs
-from common.defects_db import SYSTEM_PROMPT, USER_PROMPT
+from common.defects_db import SYSTEM_MESSAGE, PROMPT
 from docx_generator.generate_defect_report import generate_defect_only_report
 from settings import (
     DefectStates,
@@ -49,6 +49,7 @@ class PhotoManager:
         self.client = client
         self.album_button_tasks: Dict[int, Dict[str, asyncio.Task]] = {}
         self.status_locks = weakref.WeakValueDictionary()
+        self.progress_locks = weakref.WeakValueDictionary()
         self.gpt_semaphore = asyncio.Semaphore(GPT_SEM_COUNT)
         self.openai_executor = concurrent.futures.ThreadPoolExecutor(max_workers=GPT_MAX_WORKERS)
         self.common_delay_sec = COMMON_DELAY_SECONDS
@@ -129,9 +130,9 @@ class PhotoManager:
                     response = await self._call_openai_chat_limited(
                         model=self.model,
                         messages=[
-                            SYSTEM_PROMPT,
+                            SYSTEM_MESSAGE,
                             {"role": "user", "content": [
-                                {"type": "text", "text": USER_PROMPT},
+                                {"type": "text", "text": PROMPT},
                                 {"type": "image_url", "image_url": {"url": image_url}}
                             ]}
                         ],
@@ -228,20 +229,21 @@ class PhotoManager:
 
             await state.update_data(media_batches=media_batches)
 
+            active_albums = set(data.get("active_albums", set()))
+            active_albums.add(group_id)
+            await state.update_data(active_albums=list(active_albums))
+
             lock = self.status_locks.setdefault(chat_id, asyncio.Lock())
-            
             async with lock:
                 data = await state.get_data()
-                active_albums = set(data.get("active_albums", set()))
-                active_albums.add(group_id)
-                await state.update_data(active_albums=list(active_albums))
-
                 total_photo_count = data.get("total_photo_count", 0)
                 if not data.get("status_msg"):
                     msg = await message.answer(f"🔍 Обработка фото: 0/{total_photo_count}")
                     await state.update_data(status_msg=(msg.chat.id, msg.message_id))
 
             failed_files = []
+
+            # progress_lock = self.progress_locks.setdefault(chat_id, asyncio.Lock())
 
             tasks = [self.worker(fid, bot, state, failed_files) for fid in photo_ids]
             raw_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -251,21 +253,16 @@ class PhotoManager:
                 defects = data.get("defects", [])
                 defects.extend(new_defects)
                 await state.update_data(defects=defects)
-            
-            async with lock:
-                data = await state.get_data()
-                active_albums = set(data.get("active_albums", set()))
-                active_albums.discard(group_id)
-                await state.update_data(active_albums=list(active_albums))
 
-                defects = data.get("defects", [])
-                total_photo_count = data.get("total_photo_count", 0)
-                albums_done = not active_albums
+            active_albums.discard(group_id)
+            await state.update_data(active_albums=active_albums)
 
-                if albums_done:
-                    await self.generate_and_send_report(message, state)
+            data = await state.get_data()
+            albums_done = not data.get("active_albums")
+            if albums_done:
+                await self.generate_and_send_report(message, state)
 
-                await state.update_data(status_msg=None)
+            await state.update_data(status_msg=None)
 
             if failed_files:
                 await message.answer(

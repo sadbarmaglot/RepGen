@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install uv
 
-CMD ["python", "main.py"] 
+RUN uv pip install --system --no-cache-dir -r requirements.txt
