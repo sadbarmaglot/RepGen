@@ -104,8 +104,16 @@ jobs:
         
         # Устанавливаем зависимости
         echo "Устанавливаем зависимости..."
+        pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
+        
+        # Проверяем установку PyInstaller
+        pyinstaller --version
+        if ($LASTEXITCODE -ne 0) {
+          echo "❌ PyInstaller не установлен правильно!"
+          exit 1
+        }
         
         # Создаем папку для сборки
         if (-not (Test-Path "build\win")) {
@@ -118,6 +126,16 @@ jobs:
           echo "❌ main.py не найден!"
           exit 1
         }
+        
+        # Проверяем Python модули
+        echo "Проверяем Python модули..."
+        python -c "import tkinter; print('✅ tkinter OK')"
+        python -c "import PIL; print('✅ PIL OK')"
+        python -c "import openai; print('✅ openai OK')"
+        python -c "import requests; print('✅ requests OK')"
+        python -c "import docx; print('✅ docx OK')"
+        
+        echo "Все модули проверены успешно"
         
         if (-not (Test-Path "assets\icon.ico")) {
           echo "⚠️ assets\icon.ico не найден, используем без иконки"
@@ -170,13 +188,29 @@ jobs:
         echo "Аргументы PyInstaller:"
         $pyinstallerArgs | ForEach-Object { echo "  $_" }
         
+        echo "Запускаем PyInstaller..."
         & pyinstaller @pyinstallerArgs
+        
+        echo "PyInstaller завершился с кодом: $LASTEXITCODE"
         
         if ($LASTEXITCODE -ne 0) {
           echo "❌ Ошибка PyInstaller! Код выхода: $LASTEXITCODE"
           echo "Проверьте логи выше для деталей"
+          
+          # Показываем содержимое папки dist если она есть
+          if (Test-Path "dist") {
+            echo "Содержимое папки dist:"
+            Get-ChildItem -Path "dist" -Recurse | ForEach-Object { echo "  $($_.FullName)" }
+          }
+          
+          # Показываем содержимое корневой папки
+          echo "Содержимое корневой папки:"
+          Get-ChildItem -Path "." | ForEach-Object { echo "  $($_.Name)" }
+          
           exit 1
         }
+        
+        echo "✅ PyInstaller завершился успешно"
         
         # Копируем собранный файл в build/win
         if (Test-Path "dist\DefectAnalyzer.exe") {
