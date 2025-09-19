@@ -24,8 +24,28 @@ from enum import IntEnum
 
 load_dotenv()
 
-BUCKET_NAME = "autogen-images"
+BUCKET_NAME = "repgen_images"
+PROJECT_ID = os.environ.get("PROJECT_ID")
+LOCATION ="us-central1"
+
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+
+SQL_USER = os.environ.get("SQL_USER", "postgres")
+SQL_PASSWORD = os.environ.get("SQL_PASSWORD", "password")
+SQL_DB = os.environ.get("SQL_DB", "repgen_db")
+SQL_HOST = os.environ.get("SQL_HOST", "db")
+SQL_PORT = os.environ.get("SQL_PORT", "5432")
+PATH_PG_DATA = os.environ.get("PATH_PG_DATA", "./postgres_data")
+
+REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
+REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 часа
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 дней
 
 ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 

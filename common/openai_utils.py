@@ -4,7 +4,7 @@ import uuid
 from openai import OpenAI
 
 from common.gc_utils import upload_to_gcs
-from common.defects_db import SYSTEM_MESSAGE, PROMPT
+from common.defects_db import SYSTEM_PROMPT, USER_PROMPT
 
 client = OpenAI()
 
@@ -18,9 +18,9 @@ async def process_photo(photo_file, context):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                SYSTEM_MESSAGE,
+                SYSTEM_PROMPT,
                 {"role": "user", "content": [
-                    {"type": "text", "text": PROMPT},
+                    {"type": "text", "text": USER_PROMPT},
                     {"type": "image_url", "image_url": {"url": image_url}}
                 ]}
             ],
