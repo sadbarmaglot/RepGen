@@ -1,0 +1,78 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: Create macOS app bundle
+      run: |
+        chmod +x scripts/build_macos.sh
+        ./scripts/build_macos.sh
+        
+    - name: Create DMG installer
+      run: |
+        chmod +x scripts/create_dmg.sh
+        ./scripts/create_dmg.sh
+        
+    - name: Sign and notarize (if credentials provided)
+      if: env.APPLE_ID != '' && env.APPLE_ID_PASSWORD != '' && env.TEAM_ID != ''
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        TEAM_ID: ${{ secrets.TEAM_ID }}
+      run: |
+        chmod +x scripts/sign_and_notarize.sh
+        ./scripts/sign_and_notarize.sh
+        
+    - name: Upload DMG artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: DefectAnalyzer-macOS-${{ github.sha }}
+        path: dist/DefectAnalyzer.dmg
+        
+    - name: Upload App Bundle artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: DefectAnalyzer-App-${{ github.sha }}
+        path: dist/DefectAnalyzer.app
+        
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/DefectAnalyzer.dmg
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

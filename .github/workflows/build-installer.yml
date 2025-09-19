@@ -250,19 +250,12 @@ jobs:
         # Создаем лог файл для PyInstaller
         $logFile = "pyinstaller.log"
         
-        # Пытаемся использовать безопасный скрипт сборки если он есть
-        if (Test-Path "build_windows_safe.bat") {
-          echo "Используем безопасный batch скрипт сборки..."
-          & .\build_windows_safe.bat 2>&1 | Tee-Object -FilePath $logFile
-        } elseif (Test-Path "build_exe_safe.py") {
-          echo "Используем безопасный Python скрипт сборки..."
-          python build_exe_safe.py 2>&1 | Tee-Object -FilePath $logFile
-        } else {
-          # Запускаем PyInstaller с отладкой
-          & pyinstaller @pyinstallerArgs --log-level=DEBUG 2>&1 | Tee-Object -FilePath $logFile
-        }
+        # Запускаем PyInstaller напрямую - самый надежный способ
+        echo "Запускаем PyInstaller напрямую..."
+        & pyinstaller @pyinstallerArgs --log-level=INFO 2>&1 | Tee-Object -FilePath $logFile
+        $exitCode = $LASTEXITCODE
         
-        echo "PyInstaller завершился с кодом: $LASTEXITCODE"
+        echo "PyInstaller завершился с кодом: $exitCode"
         
         # Показываем содержимое лога
         if (Test-Path $logFile) {
@@ -270,8 +263,8 @@ jobs:
           Get-Content $logFile -Tail 50 | ForEach-Object { echo "  $_" }
         }
         
-        if ($LASTEXITCODE -ne 0) {
-          echo "[ERROR] Ошибка PyInstaller! Код выхода: $LASTEXITCODE"
+        if ($exitCode -ne 0) {
+          echo "[ERROR] Ошибка PyInstaller! Код выхода: $exitCode"
           echo "Проверьте логи выше для деталей"
           
           # Показываем содержимое папки dist если она есть

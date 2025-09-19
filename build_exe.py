@@ -2,28 +2,21 @@
 # -*- coding: utf-8 -*-
 """
 Скрипт для сборки Windows приложения в EXE файл
+БЕЗОПАСНАЯ ВЕРСИЯ - только ASCII символы
 """
 
 import os
 import sys
 from pathlib import Path
 
-# Настройка кодировки для Windows
-if sys.platform == "win32":
+def safe_print(message, prefix="INFO"):
+    """Безопасный вывод сообщений"""
     try:
-        import codecs
-        # Устанавливаем UTF-8 для stdout и stderr
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
-    except:
-        # Fallback для старых версий Python
-        try:
-            import codecs
-            sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
-            sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
-        except:
-            # Если ничего не работает, используем ASCII
-            pass
+        print(f"[{prefix}] {message}")
+    except UnicodeEncodeError:
+        # Заменяем проблемные символы
+        safe_msg = message.encode('ascii', 'replace').decode('ascii')
+        print(f"[{prefix}] {safe_msg}")
 
 def build_exe():
     """Сборка EXE файла"""
@@ -39,14 +32,13 @@ def build_exe():
             "--onefile",
             "--windowed",
             "--name=DefectAnalyzer",
-            "--icon=assets/icon.ico",  # Если есть иконка
-            "--add-data", "ui;ui",  # Добавляем UI модули
-            "--add-data", "common;common",  # Добавляем общие модули
-            "--add-data", "docx_generator;docx_generator",  # Добавляем генератор документов
-            "--add-data", "adapters;adapters",  # Добавляем адаптеры
-            "--add-data", "assets;assets",  # Добавляем ресурсы
-            "--add-data", "examples;examples",  # Добавляем примеры
-            "--add-data", "settings.py;.",  # Добавляем настройки
+            "--add-data", "ui;ui",
+            "--add-data", "common;common",
+            "--add-data", "docx_generator;docx_generator",
+            "--add-data", "adapters;adapters",
+            "--add-data", "assets;assets",
+            "--add-data", "examples;examples",
+            "--add-data", "settings.py;.",
             "--hidden-import=tkinter",
             "--hidden-import=tkinter.ttk",
             "--hidden-import=tkinter.messagebox",
@@ -66,22 +58,28 @@ def build_exe():
             "--hidden-import=numpy",
         ]
         
+        # Добавляем иконку если есть
+        icon_file = Path(__file__).parent / "assets" / "icon.ico"
+        if icon_file.exists():
+            args.append("--icon=assets/icon.ico")
+        
         # Запускаем сборку
         PyInstaller.__main__.run(args)
         
-        print("[OK] EXE файл успешно создан!")
-        print("[INFO] Файл находится в папке dist/")
+        safe_print("EXE файл успешно создан!", "OK")
+        safe_print("Файл находится в папке dist/", "INFO")
         
     except ImportError:
-        print("[ERROR] PyInstaller не установлен!")
-        print("Установите его командой: pip install pyinstaller")
+        safe_print("PyInstaller не установлен!", "ERROR")
+        safe_print("Установите его командой: pip install pyinstaller", "INFO")
         return False
         
     except Exception as e:
-        print(f"[ERROR] Ошибка сборки: {e}")
+        safe_print(f"Ошибка сборки: {e}", "ERROR")
         return False
         
     return True
 
 if __name__ == "__main__":
-    build_exe()
+    success = build_exe()
+    sys.exit(0 if success else 1)
