@@ -11,6 +11,9 @@ on:
 jobs:
   build-macos:
     runs-on: macos-latest
+    permissions:
+      contents: write
+      pull-requests: read
     
     steps:
     - name: Checkout code
@@ -74,5 +77,9 @@ jobs:
         files: dist/DefectAnalyzer.dmg
         draft: false
         prerelease: false
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      permissions:
+        contents: write
+        pull-requests: read
