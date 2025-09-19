@@ -1,8 +1,8 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-"""
-Скрипт для создания DMG установщика macOS
-"""
+#
+# Скрипт для создания DMG установщика macOS
+#
 
 set -e  # Остановка при ошибке
 
@@ -72,42 +72,39 @@ hdiutil create \
 echo "🎨 Настраиваем внешний вид DMG..."
 
 MOUNT_DIR="/Volumes/${APP_NAME}"
-DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_PATH}.temp" | egrep '^/dev/' | sed 1q | awk '{print $1}')
+
+# Проверяем что временный DMG существует
+if [ ! -f "${DMG_PATH}.temp" ]; then
+    echo "❌ Ошибка: Временный DMG не найден: ${DMG_PATH}.temp"
+    exit 1
+fi
+
+# Монтируем DMG
+DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_PATH}.temp" | grep '^/dev/' | head -1 | awk '{print $1}')
+
+if [ -z "$DEVICE" ]; then
+    echo "❌ Ошибка: Не удалось смонтировать DMG"
+    exit 1
+fi
+
+echo "✅ DMG смонтирован: $DEVICE"
 
 # Ждем монтирования
-sleep 2
+sleep 3
 
-# Настраиваем размер окна и позицию элементов
-osascript << EOF
-tell application "Finder"
-    tell disk "${APP_NAME}"
-        open
-        set current view of container window to icon view
-        set toolbar visible of container window to false
-        set statusbar visible of container window to false
-        set the bounds of container window to {400, 100, 900, 400}
-        set theViewOptions to the icon view options of container window
-        set arrangement of theViewOptions to not arranged
-        set icon size of theViewOptions to 128
-        set background picture of theViewOptions to file ".background:background.png"
-        make new alias file at container window to POSIX file "/Applications" with properties {name:"Applications"}
-        set position of item "${APP_NAME}.app" of container window to {100, 100}
-        set position of item "Applications" of container window to {300, 100}
-        set position of item "README.txt" of container window to {100, 250}
-        close
-        open
-        update without registering applications
-        delay 2
-        close
-    end tell
-end tell
-EOF
+# Проверяем что точка монтирования существует
+if [ ! -d "${MOUNT_DIR}" ]; then
+    echo "❌ Ошибка: Точка монтирования не найдена: ${MOUNT_DIR}"
+    hdiutil detach "${DEVICE}" || true
+    exit 1
+fi
 
 # Создаем фоновое изображение (простое)
 mkdir -p "${MOUNT_DIR}/.background"
+
 # Создаем простое фоновое изображение с помощью Python
 python3 << EOF
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import os
 
 # Создаем изображение 500x300
@@ -123,7 +120,27 @@ for y in range(300):
 img.save('${MOUNT_DIR}/.background/background.png')
 EOF
 
+# Настраиваем размер окна и позицию элементов (упрощенная версия)
+osascript << EOF
+tell application "Finder"
+    try
+        tell disk "${APP_NAME}"
+            open
+            set current view of container window to icon view
+            set toolbar visible of container window to false
+            set statusbar visible of container window to false
+            set the bounds of container window to {400, 100, 900, 400}
+            set theViewOptions to the icon view options of container window
+            set arrangement of theViewOptions to not arranged
+            set icon size of theViewOptions to 128
+            close
+        end tell
+    end try
+end tell
+EOF
+
 # Размонтируем
+echo "🔽 Размонтируем DMG..."
 hdiutil detach "${DEVICE}"
 
 # Конвертируем в финальный DMG

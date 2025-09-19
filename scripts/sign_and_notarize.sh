@@ -1,9 +1,9 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-"""
-Скрипт для подписи кода и нотаризации macOS приложения
-Требует Apple Developer Account
-"""
+#
+# Скрипт для подписи кода и нотаризации macOS приложения
+# Требует Apple Developer Account
+#
 
 set -e  # Остановка при ошибке
 
