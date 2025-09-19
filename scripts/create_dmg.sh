@@ -58,7 +58,8 @@ EOF
 
 echo "📦 Создаем DMG файл..."
 
-# Создаем DMG
+# Создаем DMG (hdiutil автоматически добавляет .dmg расширение)
+TEMP_DMG_FILE="${DMG_PATH%.dmg}.temp"
 hdiutil create \
     -srcfolder "${TEMP_DMG_DIR}" \
     -volname "${APP_NAME}" \
@@ -66,21 +67,24 @@ hdiutil create \
     -fsargs "-c c=64,a=16,e=16" \
     -format UDRW \
     -size 500m \
-    "${DMG_PATH}.temp"
+    "${TEMP_DMG_FILE}"
 
 # Монтируем DMG для настройки
 echo "🎨 Настраиваем внешний вид DMG..."
 
 MOUNT_DIR="/Volumes/${APP_NAME}"
 
-# Проверяем что временный DMG существует
-if [ ! -f "${DMG_PATH}.temp" ]; then
-    echo "❌ Ошибка: Временный DMG не найден: ${DMG_PATH}.temp"
+# Проверяем что временный DMG существует (hdiutil добавляет .dmg)
+TEMP_DMG_WITH_EXT="${TEMP_DMG_FILE}.dmg"
+if [ ! -f "${TEMP_DMG_WITH_EXT}" ]; then
+    echo "❌ Ошибка: Временный DMG не найден: ${TEMP_DMG_WITH_EXT}"
     exit 1
 fi
 
+echo "✅ Временный DMG создан: ${TEMP_DMG_WITH_EXT}"
+
 # Монтируем DMG
-DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_PATH}.temp" | grep '^/dev/' | head -1 | awk '{print $1}')
+DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "${TEMP_DMG_WITH_EXT}" | grep '^/dev/' | head -1 | awk '{print $1}')
 
 if [ -z "$DEVICE" ]; then
     echo "❌ Ошибка: Не удалось смонтировать DMG"
@@ -145,10 +149,10 @@ hdiutil detach "${DEVICE}"
 
 # Конвертируем в финальный DMG
 echo "🔄 Конвертируем в финальный DMG..."
-hdiutil convert "${DMG_PATH}.temp" -format UDZO -imagekey zlib-level=9 -o "${DMG_PATH}"
+hdiutil convert "${TEMP_DMG_WITH_EXT}" -format UDZO -imagekey zlib-level=9 -o "${DMG_PATH}"
 
 # Удаляем временные файлы
-rm -f "${DMG_PATH}.temp"
+rm -f "${TEMP_DMG_WITH_EXT}"
 rm -rf "${TEMP_DMG_DIR}"
 
 echo "✅ DMG установщик создан: ${DMG_PATH}"
