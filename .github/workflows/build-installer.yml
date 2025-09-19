@@ -250,8 +250,17 @@ jobs:
         # Создаем лог файл для PyInstaller
         $logFile = "pyinstaller.log"
         
-        # Запускаем PyInstaller с отладкой
-        & pyinstaller @pyinstallerArgs --log-level=DEBUG 2>&1 | Tee-Object -FilePath $logFile
+        # Пытаемся использовать безопасный скрипт сборки если он есть
+        if (Test-Path "build_windows_safe.bat") {
+          echo "Используем безопасный batch скрипт сборки..."
+          & .\build_windows_safe.bat 2>&1 | Tee-Object -FilePath $logFile
+        } elseif (Test-Path "build_exe_safe.py") {
+          echo "Используем безопасный Python скрипт сборки..."
+          python build_exe_safe.py 2>&1 | Tee-Object -FilePath $logFile
+        } else {
+          # Запускаем PyInstaller с отладкой
+          & pyinstaller @pyinstallerArgs --log-level=DEBUG 2>&1 | Tee-Object -FilePath $logFile
+        }
         
         echo "PyInstaller завершился с кодом: $LASTEXITCODE"
         

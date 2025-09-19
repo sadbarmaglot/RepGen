@@ -8,6 +8,23 @@ import os
 import sys
 from pathlib import Path
 
+# Настройка кодировки для Windows
+if sys.platform == "win32":
+    try:
+        import codecs
+        # Устанавливаем UTF-8 для stdout и stderr
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except:
+        # Fallback для старых версий Python
+        try:
+            import codecs
+            sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+            sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+        except:
+            # Если ничего не работает, используем ASCII
+            pass
+
 def build_exe():
     """Сборка EXE файла"""
     try:
@@ -52,16 +69,16 @@ def build_exe():
         # Запускаем сборку
         PyInstaller.__main__.run(args)
         
-        print("✅ EXE файл успешно создан!")
-        print("📁 Файл находится в папке dist/")
+        print("[OK] EXE файл успешно создан!")
+        print("[INFO] Файл находится в папке dist/")
         
     except ImportError:
-        print("❌ PyInstaller не установлен!")
+        print("[ERROR] PyInstaller не установлен!")
         print("Установите его командой: pip install pyinstaller")
         return False
         
     except Exception as e:
-        print(f"❌ Ошибка сборки: {e}")
+        print(f"[ERROR] Ошибка сборки: {e}")
         return False
         
     return True
