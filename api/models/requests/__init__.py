@@ -38,6 +38,9 @@ from .upload_requests import (
 from .construction_requests import (
     ConstructionTypeRequest
 )
+from .image_analysis_requests import (
+    ImageAnalysisRequest
+)
 
 __all__ = [
     # Auth requests
@@ -70,5 +73,7 @@ __all__ = [
     "UploadResponse",
     "FileUploadResponseWithBlob",
     # Construction requests
-    "ConstructionTypeRequest"
+    "ConstructionTypeRequest",
+    # Image analysis requests
+    "ImageAnalysisRequest"
 ]

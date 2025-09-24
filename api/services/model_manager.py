@@ -84,10 +84,12 @@ class OpenAIProvider(BaseModelProvider):
             )
             
             result = json.loads(response.choices[0].message.content)
+            logger.info(f"OpenAI API результат: {result}")
             return {
                 "image_url": image_url,
                 "description": result.get("description", ""),
                 "recommendation": result.get("recommendation", ""),
+                "category": result.get("category", ""),
                 "construction_type": result.get("construction_type", ""),
                 "model_used": config.get("model_name", "gpt-4o-mini"),
             }
@@ -208,10 +210,12 @@ class GoogleGeminiProvider(BaseModelProvider):
             result = self._safe_parse_json(content)
 
             if result:
+                logger.info(f"Gemini API результат: {result}")
                 return {
                     "image_url": image_url,
                     "description": result.get("description", ""),
                     "recommendation": result.get("recommendation", ""),
+                    "category": result.get("category", ""),
                     "construction_type": result.get("construction_type", ""),
                     "model_used": config.get("model_name", "gemini-2.5-flash")
                 }

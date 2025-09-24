@@ -29,7 +29,7 @@ from api.routes.upload import router as upload_router
 from api.routes.plans import router as plans_router
 from api.routes.marks import router as marks_router
 from api.routes.photos import router as photos_router
-from api.routes.construction import router as construction_router
+from api.routes.image_analysis import router as image_analysis_router
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +59,7 @@ app.include_router(plans_router)
 app.include_router(marks_router)
 app.include_router(photos_router)
 app.include_router(upload_router)
-app.include_router(construction_router)
+app.include_router(image_analysis_router)
 
 handlers = BotHandlers(
     whitelist=load_whitelist(),

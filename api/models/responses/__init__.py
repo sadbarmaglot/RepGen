@@ -33,6 +33,9 @@ from .construction_responses import (
     ConstructionTypeResponse,
     ConstructionTypeResult
 )
+from .image_analysis_responses import (
+    ImageAnalysisResponse
+)
 
 __all__ = [
     # Auth responses
@@ -60,5 +63,7 @@ __all__ = [
     "ErrorResponse",
     # Construction responses
     "ConstructionTypeResponse",
-    "ConstructionTypeResult"
+    "ConstructionTypeResult",
+    # Image analysis responses
+    "ImageAnalysisResponse"
 ]

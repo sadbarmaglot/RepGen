@@ -2,23 +2,53 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Depends
 
+from api.services.defect_analyzer import DefectAnalyzer
+from api.services.model_manager import ModelManager
+from api.services.construction_analyzer import ConstructionAnalyzer
+from api.services.redis_service import redis_service
 from api.models.entities import User
 from api.dependencies.auth_dependencies import get_current_user
-from api.models.requests import ConstructionTypeRequest
-from api.models.responses import ConstructionTypeResponse
-from api.services.construction_analyzer import ConstructionAnalyzer
-from api.services.model_manager import ModelManager
-from api.services.redis_service import redis_service
+from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest
+from api.models.responses import ImageAnalysisResponse, ConstructionTypeResponse
 from common.gc_utils import create_signed_url
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/construction", tags=["construction"])
+router = APIRouter(prefix="/analysis", tags=["analysis"])
 
+# Инициализация сервисов
 model_manager = ModelManager()
+defect_analyzer = DefectAnalyzer(model_manager)
 construction_analyzer = ConstructionAnalyzer(model_manager)
 
-@router.post("/analyze_type", response_model=ConstructionTypeResponse)
+@router.post("/defect", response_model=ImageAnalysisResponse)
+async def analyze_image(
+    request: ImageAnalysisRequest,
+    _: User = Depends(get_current_user)
+):
+    """
+    Анализ изображения по имени файла
+    
+    Принимает имя изображения и возвращает анализ дефекта с использованием gpt-4o-mini
+    """
+    try:
+        logger.info(f"Получен запрос на анализ изображения: {request.image_name}")
+        
+        result = await defect_analyzer.analyze_single_image_by_name(
+            image_name=request.image_name
+        )
+        
+        return ImageAnalysisResponse(
+            description=result["description"],
+            recommendation=result["recommendation"],
+            category=result["category"]
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при анализе изображения {request.image_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/construction_type", response_model=ConstructionTypeResponse)
 async def analyze_construction_type(
     request: ConstructionTypeRequest,
     _: User = Depends(get_current_user)

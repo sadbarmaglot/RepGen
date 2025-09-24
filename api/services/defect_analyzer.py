@@ -3,6 +3,7 @@ import logging
 
 from api.services.model_manager import ModelManager
 from api.models.config import DefectResult, AnalysisConfig, ImageInfo
+from common.gc_utils import create_signed_url
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
@@ -99,3 +100,64 @@ class DefectAnalyzer:
                 recommendation="Требуется повторный анализ",
                 model_used="error"
             )
+    
+    async def analyze_single_image_by_name(
+        self, 
+        image_name: str
+    ) -> dict:
+        """
+        Анализ одного изображения по имени файла
+        
+        Args:
+            image_name: Имя файла изображения в GCP bucket
+            
+        Returns:
+            Словарь с результатом анализа (description, recommendation)
+        """
+        try:
+            # Создаем подписной URL для изображения
+            signed_url = await create_signed_url(image_name, expiration_minutes=60)
+            
+            # Определяем MIME тип по расширению файла
+            if image_name.lower().endswith('.png'):
+                mime_type = "image/png"
+            elif image_name.lower().endswith('.jpg') or image_name.lower().endswith('.jpeg'):
+                mime_type = "image/jpeg"
+            elif image_name.lower().endswith('.gif'):
+                mime_type = "image/gif"
+            elif image_name.lower().endswith('.webp'):
+                mime_type = "image/webp"
+            else:
+                mime_type = "image/jpeg"  # по умолчанию
+            
+            # Конфигурация для gpt-4o-mini с дефолтными параметрами
+            config = {
+                "model_name": "gpt-4o-mini",
+                "temperature": 0.2,
+                "max_tokens": 1024
+            }
+            
+            logger.info(f"Начинаю анализ изображения {image_name} с моделью gpt-4o-mini")
+            
+            # Анализируем изображение
+            analysis_result = await self.model_manager.analyze_image(
+                image_url=signed_url,
+                mime_type=mime_type,
+                config=config
+            )
+            
+            # Возвращаем description, recommendation и category
+            return {
+                "description": analysis_result.get("description", "Дефект не определен"),
+                "recommendation": analysis_result.get("recommendation", "Рекомендация не предоставлена"),
+                "category": analysis_result.get("category", "Не определена")
+            }
+            
+        except Exception as e:
+            logger.error(f"Ошибка при анализе изображения {image_name}: {e}")
+            
+            return {
+                "description": "Ошибка анализа",
+                "recommendation": "Требуется повторный анализ",
+                "category": "Не определена"
+            }

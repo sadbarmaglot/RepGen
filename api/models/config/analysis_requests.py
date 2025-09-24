@@ -23,3 +23,4 @@ class DefectResult(BaseModel):
 class DefectAnalysisResponse(BaseModel):
     """Ответ с результатами анализа"""
     results: List[DefectResult] = Field(..., description="Результаты анализа")
+
