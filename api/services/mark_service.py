@@ -35,7 +35,9 @@ class MarkService:
             plan_id=mark_data.plan_id,
             name=mark_data.name,
             description=mark_data.description,
-            type=mark_data.type
+            type=mark_data.type,
+            x=mark_data.x,
+            y=mark_data.y
         )
         
         try:
@@ -115,6 +117,10 @@ class MarkService:
             mark.description = mark_data.description
         if mark_data.type is not None:
             mark.type = mark_data.type
+        if mark_data.x is not None:
+            mark.x = mark_data.x
+        if mark_data.y is not None:
+            mark.y = mark_data.y
         
         try:
             await self.db.commit()
@@ -155,5 +161,7 @@ class MarkService:
             name=mark.name,
             description=mark.description,
             type=mark.type,
+            x=mark.x,
+            y=mark.y,
             created_at=mark.created_at
         )

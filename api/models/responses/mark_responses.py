@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from decimal import Decimal
 from ..database.enums import MarkType
 
 class MarkResponse(BaseModel):
@@ -10,6 +11,8 @@ class MarkResponse(BaseModel):
     name: Optional[str] = Field(None, description="Название отметки")
     description: Optional[str] = Field(None, description="Описание отметки")
     type: MarkType = Field(..., description="Тип отметки")
+    x: Optional[Decimal] = Field(None, description="Координата X (от 0 до 1, не зависит от размеров изображения)")
+    y: Optional[Decimal] = Field(None, description="Координата Y (от 0 до 1, не зависит от размеров изображения)")
     created_at: datetime = Field(..., description="Дата создания отметки")
     
     class Config:

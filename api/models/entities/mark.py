@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, Enum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -14,6 +14,8 @@ class Mark(Base):
     name = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
     type = Column(Enum(MarkType, name="mark_type"), nullable=False, default=MarkType.other)
+    x = Column(Numeric(5, 4), nullable=True, comment="Координата X (не зависит от размеров изображения)")
+    y = Column(Numeric(5, 4), nullable=True, comment="Координата Y (не зависит от размеров изображения)")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с планом
