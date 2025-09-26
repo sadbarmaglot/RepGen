@@ -32,8 +32,9 @@ class ConstructionAnalyzer:
         """
         try:
             gen_cfg = {
-                "temperature": 0.1,
+                "temperature": 0.2,
                 "max_output_tokens": 4096,
+                "model_name": "gpt-4o",
             }
             result = await self._analyze_with_model(
                 image_url=image_url,
@@ -45,6 +46,7 @@ class ConstructionAnalyzer:
             return ConstructionTypeResult(
                 image_name=image_name,
                 construction_type=result["construction_type"],
+                description=result["description"],
             )
             
         except Exception as e:
@@ -80,9 +82,10 @@ class ConstructionAnalyzer:
                 config=config
             )
             
-            construction_type = result.get("construction_type", "Не определен")
-            
-            return {"construction_type": construction_type}
+            return {
+                "construction_type": result.get("construction_type", "Не определен"), 
+                "description": result.get("description", "Не определен")
+            }
             
         except Exception as e:
             logger.error(f"Ошибка при анализе с моделью: {e}")

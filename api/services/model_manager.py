@@ -87,10 +87,10 @@ class OpenAIProvider(BaseModelProvider):
             logger.info(f"OpenAI API результат: {result}")
             return {
                 "image_url": image_url,
-                "description": result.get("description", ""),
                 "recommendation": result.get("recommendation", ""),
                 "category": result.get("category", ""),
                 "construction_type": result.get("construction_type", ""),
+                "description": result.get("description", ""),
                 "model_used": config.get("model_name", "gpt-4o-mini"),
             }
             
