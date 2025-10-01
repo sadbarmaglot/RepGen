@@ -7,11 +7,12 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, StateFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from common.whitelist_utils import load_whitelist
+from common.logging_utils import get_user_logger
 from core.handlers import BotHandlers
 from core.photo_manager import PhotoManager
 from settings import DefectStates, BOT_TOKEN
@@ -30,10 +31,10 @@ from api.routes.plans import router as plans_router
 from api.routes.marks import router as marks_router
 from api.routes.photos import router as photos_router
 from api.routes.image_analysis import router as image_analysis_router
+from api.middleware.logging_middleware import UserLoggingMiddleware
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_user_logger(__name__)
 
 app = FastAPI(
     root_path="/repgen",
@@ -50,6 +51,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# User logging middleware
+app.add_middleware(UserLoggingMiddleware)
 
 app.include_router(auth_router)
 app.include_router(projects_router)
@@ -124,17 +128,20 @@ async def analyze_defects(
         
         # Валидация количества изображений
         if len(request.image_infos) > 20:
+            logger.warning(f"Превышено максимальное количество изображений: {len(request.image_infos)}")
             raise HTTPException(
                 status_code=400, 
                 detail="Максимальное количество изображений: 20"
             )
         
         # Анализ изображений
+        logger.info("Начинаем анализ изображений")
         results = await defect_analyzer.analyze_images(
             image_infos=request.image_infos,
             config=request.config
         )
         
+        logger.info(f"Анализ завершен успешно, найдено {len(results)} результатов")
         return DefectAnalysisResponse(results=results)
         
     except Exception as e:
