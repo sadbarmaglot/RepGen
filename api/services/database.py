@@ -10,7 +10,6 @@ DATABASE_URL = f"postgresql+asyncpg://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_
 # Создаем async engine
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,  # Включаем логирование SQL запросов для отладки
     pool_pre_ping=True,  # Проверяем соединения перед использованием
     pool_recycle=300,  # Пересоздаем соединения каждые 5 минут
 )
