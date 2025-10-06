@@ -36,6 +36,14 @@ from api.middleware.logging_middleware import UserLoggingMiddleware
 # Настройка логирования
 logger = get_user_logger(__name__)
 
+uvicorn_logger = logging.getLogger("uvicorn.access")
+
+class HealthFilter(logging.Filter):
+    def filter(self, record):
+        return "/health" not in record.getMessage()
+
+uvicorn_logger.addFilter(HealthFilter())
+
 app = FastAPI(
     root_path="/repgen",
     title="Defect Analysis API",
@@ -150,15 +158,5 @@ async def analyze_defects(
 
 
 if __name__ == "__main__":
-    # Настройка логирования uvicorn для исключения health endpoint
-    import logging
-    uvicorn_logger = logging.getLogger("uvicorn.access")
-    
-    class HealthFilter(logging.Filter):
-        def filter(self, record):
-            return "/health" not in record.getMessage()
-    
-    uvicorn_logger.addFilter(HealthFilter())
-    
     uvicorn.run(app, host="0.0.0.0", port=8000)
     # asyncio.run(main())
