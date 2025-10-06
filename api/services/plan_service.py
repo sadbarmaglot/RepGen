@@ -3,10 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 
-from common.gc_utils import create_signed_url
+from common.gc_utils import create_signed_url, delete_blob_by_name
 from api.models.entities import Plan
 from api.models.entities import Object
-from api.models.entities import Project
 from api.models.requests import PlanCreateRequest, PlanUpdateRequest
 from api.models.responses import PlanResponse, PlanListResponse
 from api.services.redis_service import redis_service
@@ -141,7 +140,9 @@ class PlanService:
             await self.db.delete(plan)
             await self.db.commit()
             
+            # Удаляем изображение из blob storage и очищаем кэш
             if plan.image_name:
+                await delete_blob_by_name(plan.image_name)
                 await redis_service.clear_signed_url(plan.image_name)
             
             return True

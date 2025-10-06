@@ -4,12 +4,9 @@ from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from api.models.entities import Photo
 from api.models.entities import Mark
-from api.models.entities import Plan
-from api.models.entities import Object
-from api.models.entities import Project
 from api.models.requests import PhotoCreateRequest, PhotoUpdateRequest
 from api.models.responses import PhotoResponse, PhotoListResponse
-from common.gc_utils import create_signed_url
+from common.gc_utils import create_signed_url, delete_blob_by_name
 from api.services.redis_service import redis_service
 from api.services.access_control_service import AccessControlService
 
@@ -144,8 +141,9 @@ class PhotoService:
             await self.db.delete(photo)
             await self.db.commit()
             
-            # Очищаем кэш для этого изображения
+            # Удаляем изображение из blob storage и очищаем кэш
             if photo.image_name:
+                await delete_blob_by_name(photo.image_name)
                 await redis_service.clear_signed_url(photo.image_name)
             
             return True

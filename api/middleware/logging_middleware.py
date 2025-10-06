@@ -53,6 +53,11 @@ class UserLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         start_time = time.time()
         
+        # Пропускаем логирование для health endpoint
+        if request.url.path == "/health":
+            response = await call_next(request)
+            return response
+        
         # Извлекаем информацию о пользователе из заголовков или токена
         user_email = "anonymous"
         

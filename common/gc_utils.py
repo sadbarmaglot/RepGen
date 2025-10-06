@@ -197,6 +197,31 @@ async def list_model_comparison_images(prefix: str = "model_comparison", max_res
     
     return images_info
 
+async def delete_blob_by_name(blob_name: str) -> bool:
+    """
+    Удаляет файл из GCP bucket по названию
+    
+    Args:
+        blob_name: Имя файла для удаления
+        
+    Returns:
+        bool: True если удаление прошло успешно, False в противном случае
+    """
+    try:
+        blob = bucket.blob(blob_name)
+        
+        # Проверяем, что файл существует
+        if not blob.exists():
+            print(f"Файл {blob_name} не найден в бакете")
+            return False
+        
+        blob.delete()
+        print(f"Файл {blob_name} успешно удален из бакета")
+        return True
+    except Exception as e:
+        print(f"Ошибка при удалении файла {blob_name}: {e}")
+        return False
+
 async def delete_model_comparison_image(filename: str) -> bool:
     """
     Удаляет изображение для сравнения моделей из GCP bucket
