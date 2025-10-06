@@ -150,5 +150,15 @@ async def analyze_defects(
 
 
 if __name__ == "__main__":
+    # Настройка логирования uvicorn для исключения health endpoint
+    import logging
+    uvicorn_logger = logging.getLogger("uvicorn.access")
+    
+    class HealthFilter(logging.Filter):
+        def filter(self, record):
+            return "/health" not in record.getMessage()
+    
+    uvicorn_logger.addFilter(HealthFilter())
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
     # asyncio.run(main())
