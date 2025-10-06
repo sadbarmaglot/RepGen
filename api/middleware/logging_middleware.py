@@ -54,7 +54,7 @@ class UserLoggingMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
         
         # Пропускаем логирование для health endpoint
-        if request.url.path == "/health":
+        if request.url.path == "/health" or request.url.path == "/repgen/health":
             response = await call_next(request)
             return response
         
