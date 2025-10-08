@@ -132,7 +132,7 @@ class DefectAnalyzer:
             
             # Конфигурация для gpt-4o-mini с дефолтными параметрами
             config = {
-                "model_name": "gpt-4o-mini",
+                "model_name": "gpt-4o",
                 "temperature": 0.2,
                 "max_tokens": 1024
             }
