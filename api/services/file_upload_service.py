@@ -15,7 +15,7 @@ class FileUploadService:
     
     def __init__(self):
         self.allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-        self.max_file_size = 10 * 1024 * 1024  # 10MB
+        self.max_file_size = 20 * 1024 * 1024  # 20MB
         
     async def upload_file(
         self, 
