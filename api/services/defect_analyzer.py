@@ -103,13 +103,15 @@ class DefectAnalyzer:
     
     async def analyze_single_image_by_name(
         self, 
-        image_name: str
+        image_name: str,
+        construction_type: str = None
     ) -> dict:
         """
         Анализ одного изображения по имени файла
         
         Args:
             image_name: Имя файла изображения в GCP bucket
+            construction_type: Тип конструкции для фильтрации базы дефектов
             
         Returns:
             Словарь с результатом анализа (description, recommendation)
@@ -138,12 +140,15 @@ class DefectAnalyzer:
             }
             
             logger.info(f"Начинаю анализ изображения {image_name} с моделью gpt-4o-mini")
+            if construction_type is not None:
+                logger.info(f"Используется фильтрация по типу конструкции: {construction_type}")
             
             # Анализируем изображение
             analysis_result = await self.model_manager.analyze_image(
                 image_url=signed_url,
                 mime_type=mime_type,
-                config=config
+                config=config,
+                construction_type=construction_type
             )
             
             # Возвращаем description, recommendation и category

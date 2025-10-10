@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any
 
-from common.defects_db import SYSTEM_PROMPT, USER_PROMPT
+from common.defects_db import SYSTEM_PROMPT, USER_PROMPT, get_user_prompt
 from settings import PROJECT_ID, LOCATION
 
 # OpenAI
@@ -302,7 +302,8 @@ class ModelManager:
         self, 
         image_url: str, 
         mime_type: str,
-        config: Dict[str, Any]
+        config: Dict[str, Any],
+        construction_type: str = None
         ) -> Dict[str, Any]:
         """Анализ изображения с помощью выбранной модели"""
         
@@ -310,11 +311,17 @@ class ModelManager:
         
         provider = self.get_provider(model_name)
         
+        if construction_type is not None:
+            user_prompt = get_user_prompt(construction_type)
+        else:
+            user_prompt = self.user_prompt
+        
         return await provider.analyze_image(
             image_url, 
             mime_type, 
             self.system_prompt, 
-            self.user_prompt, config
+            user_prompt, 
+            config
         )
     
     def cleanup_all(self):

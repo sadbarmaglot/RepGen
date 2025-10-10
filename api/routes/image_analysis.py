@@ -29,13 +29,17 @@ async def analyze_image(
     """
     Анализ изображения по имени файла
     
-    Принимает имя изображения и возвращает анализ дефекта с использованием gpt-4o-mini
+    Принимает имя изображения и возвращает анализ дефекта с использованием gpt-4o.
+    Можно указать тип конструкции для фильтрации базы дефектов.
     """
     try:
         logger.info(f"Получен запрос на анализ изображения: {request.image_name}")
+        if request.construction_type is not None:
+            logger.info(f"Тип конструкции: {request.construction_type}")
         
         result = await defect_analyzer.analyze_single_image_by_name(
-            image_name=request.image_name
+            image_name=request.image_name,
+            construction_type=request.construction_type
         )
         
         return ImageAnalysisResponse(
