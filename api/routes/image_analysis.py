@@ -9,7 +9,7 @@ from api.services.redis_service import redis_service
 from api.models.entities import User
 from api.dependencies.auth_dependencies import get_current_user
 from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest
-from api.models.responses import ImageAnalysisResponse, ConstructionTypeResponse
+from api.models.responses import ImageAnalysisResponse, ConstructionTypeResponse, DefectDescriptionResponse
 from common.gc_utils import create_signed_url
 
 logger = logging.getLogger(__name__)
@@ -84,5 +84,40 @@ async def analyze_construction_type(
         
     except Exception as e:
         logger.error(f"Ошибка при определении типа конструкции: {str(e)}")
+        await redis_service.clear_signed_url(request.image_name)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/defect_description", response_model=DefectDescriptionResponse)
+async def analyze_defect_description(
+    request: ConstructionTypeRequest,
+    _: User = Depends(get_current_user)
+):
+    """
+    Генерация описания дефектов по имени изображения
+    
+    Требует аутентификации. Принимает имя изображения в GCS bucket и возвращает описание дефектов и повреждений
+    """
+    try:
+        logger.info(f"Получен запрос на генерацию описания дефектов для изображения: {request.image_name}")
+        
+        cached_url = await redis_service.get_signed_url(request.image_name)
+        
+        if cached_url:
+            logger.info(f"Использование кэшированного signed URL для {request.image_name}")
+            image_url = cached_url
+        else:
+            logger.info(f"Создание нового signed URL для {request.image_name}")
+            image_url = await create_signed_url(request.image_name, expiration_minutes=60)
+            await redis_service.cache_signed_url(request.image_name, image_url, ttl_seconds=3600)
+        
+        result = await construction_analyzer.analyze_defect_description(
+            image_url=image_url,
+            image_name=request.image_name
+        )
+        
+        return DefectDescriptionResponse(result=result)
+        
+    except Exception as e:
+        logger.error(f"Ошибка при генерации описания дефектов: {str(e)}")
         await redis_service.clear_signed_url(request.image_name)
         raise HTTPException(status_code=500, detail=str(e))

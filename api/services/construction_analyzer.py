@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, Any
 
-from api.models.responses.construction_responses import ConstructionTypeResult
+from api.models.responses.construction_responses import ConstructionTypeResult, DefectDescriptionResult
 from api.services.model_manager import ModelManager
-from common.defects_db import SYSTEM_PROMPT, USER_PROMPT_CONSTRUCTIONS
+from common.defects_db import SYSTEM_PROMPT, USER_PROMPT_CONSTRUCTIONS, USER_PROMPT_DEFECT_DESCRIPTION
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +45,48 @@ class ConstructionAnalyzer:
             
             return ConstructionTypeResult(
                 image_name=image_name,
-                construction_type=result["construction_type"],
-                description=result["description"],
+                construction_type=result.get("construction_type", "Не определен"),
             )
             
         except Exception as e:
             logger.error(f"Ошибка при определении типа конструкции для {image_url}: {e}")
+            raise
+    
+    async def analyze_defect_description(
+        self, 
+        image_url: str,
+        image_name: str,
+    ) -> DefectDescriptionResult:
+        """
+        Генерация описания дефектов по изображению
+        
+        Args:
+            image_url: URL изображения
+            image_name: Имя изображения
+            
+        Returns:
+            Результат описания дефектов
+        """
+        try:
+            gen_cfg = {
+                "temperature": 0.2,
+                "max_output_tokens": 4096,
+                "model_name": "gpt-4o",
+            }
+            result = await self._analyze_with_model(
+                image_url=image_url,
+                system_prompt=self.system_prompt,
+                user_prompt=USER_PROMPT_DEFECT_DESCRIPTION,
+                config=gen_cfg
+            )
+            
+            return DefectDescriptionResult(
+                image_name=image_name,
+                description=result.get("description", "Описание не получено"),
+            )
+            
+        except Exception as e:
+            logger.error(f"Ошибка при генерации описания дефектов для {image_url}: {e}")
             raise
     
     async def _analyze_with_model(
@@ -65,6 +101,8 @@ class ConstructionAnalyzer:
         
         Args:
             image_url: URL изображения
+            system_prompt: Системный промпт
+            user_prompt: Пользовательский промпт
             config: Конфигурация анализа
             
         Returns:
@@ -82,10 +120,7 @@ class ConstructionAnalyzer:
                 config=config
             )
             
-            return {
-                "construction_type": result.get("construction_type", "Не определен"), 
-                "description": result.get("description", "Не определен")
-            }
+            return result
             
         except Exception as e:
             logger.error(f"Ошибка при анализе с моделью: {e}")

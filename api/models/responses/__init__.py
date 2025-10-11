@@ -31,7 +31,9 @@ from .common_responses import (
 )
 from .construction_responses import (
     ConstructionTypeResponse,
-    ConstructionTypeResult
+    ConstructionTypeResult,
+    DefectDescriptionResponse,
+    DefectDescriptionResult
 )
 from .image_analysis_responses import (
     ImageAnalysisResponse
@@ -64,6 +66,8 @@ __all__ = [
     # Construction responses
     "ConstructionTypeResponse",
     "ConstructionTypeResult",
+    "DefectDescriptionResponse",
+    "DefectDescriptionResult",
     # Image analysis responses
     "ImageAnalysisResponse"
 ]
