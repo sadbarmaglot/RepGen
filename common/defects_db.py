@@ -828,7 +828,7 @@ USER_PROMPT_CONSTRUCTIONS = """
 
 Ответ строго в JSON:
 {
-  "construction_type": "Тип "
+  "construction_type": "Тип конструкции"
 }
 """
 
