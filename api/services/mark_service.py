@@ -65,7 +65,7 @@ class MarkService:
         
         return self._mark_to_response(mark)
 
-    async def get_plan_marks(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 100) -> MarkListResponse:
+    async def get_plan_marks(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 500) -> MarkListResponse:
         """Получение списка отметок плана"""
         
         # Проверяем доступ к плану
