@@ -1,11 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
-from api.models.entities import Mark
-from api.models.entities import Plan
-from api.models.entities import Object
-from api.models.entities import Project
+from api.models.entities import Mark, Plan, Photo
 from api.models.requests import MarkCreateRequest, MarkUpdateRequest
 from api.models.responses import MarkResponse, MarkListResponse
 from api.services.access_control_service import AccessControlService
@@ -44,7 +41,7 @@ class MarkService:
             self.db.add(mark)
             await self.db.commit()
             await self.db.refresh(mark)
-            return self._mark_to_response(mark)
+            return self._mark_to_response(mark, photo_count=0)
         except IntegrityError as e:
             await self.db.rollback()
             raise ValueError(f"Ошибка при создании отметки: {str(e)}")
@@ -55,18 +52,27 @@ class MarkService:
         if not await self.access_control.check_mark_access(mark_id, user_id):
             return None
         
+        # Получаем метку с подсчетом фотографий
         result = await self.db.execute(
-            select(Mark).where(Mark.id == mark_id)
+            select(
+                Mark,
+                func.count(Photo.id).label('photo_count')
+            )
+            .outerjoin(Photo, Photo.mark_id == Mark.id)
+            .where(Mark.id == mark_id)
+            .group_by(Mark.id)
         )
-        mark = result.scalar_one_or_none()
         
-        if not mark:
+        row = result.first()
+        
+        if not row:
             return None
         
-        return self._mark_to_response(mark)
+        mark, photo_count = row
+        return self._mark_to_response(mark, photo_count)
 
     async def get_plan_marks(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 500) -> MarkListResponse:
-        """Получение списка отметок плана"""
+        """Получение списка отметок плана с количеством фотографий для каждой метки"""
         
         # Проверяем доступ к плану
         if not await self.access_control.check_plan_access(plan_id, user_id):
@@ -78,18 +84,25 @@ class MarkService:
         )
         total = len(count_result.scalars().all())
         
-        # Получаем отметки с пагинацией
+        # Получаем отметки с пагинацией и подсчетом фотографий
         result = await self.db.execute(
-            select(Mark)
+            select(
+                Mark,
+                func.count(Photo.id).label('photo_count')
+            )
+            .outerjoin(Photo, Photo.mark_id == Mark.id)
             .where(Mark.plan_id == plan_id)
+            .group_by(Mark.id)
+            .order_by(Mark.id)
             .offset(skip)
             .limit(limit)
         )
-        marks = result.scalars().all()
+        
+        marks_with_counts = result.all()
         
         mark_responses = []
-        for mark in marks:
-            mark_responses.append(self._mark_to_response(mark))
+        for mark, photo_count in marks_with_counts:
+            mark_responses.append(self._mark_to_response(mark, photo_count))
         
         return MarkListResponse(
             marks=mark_responses,
@@ -153,7 +166,7 @@ class MarkService:
             await self.db.rollback()
             raise ValueError(f"Ошибка при удалении отметки: {str(e)}")
 
-    def _mark_to_response(self, mark: Mark) -> MarkResponse:
+    def _mark_to_response(self, mark: Mark, photo_count: Optional[int] = None) -> MarkResponse:
         """Преобразование модели Mark в MarkResponse"""
         return MarkResponse(
             id=mark.id,
@@ -163,5 +176,6 @@ class MarkService:
             type=mark.type,
             x=mark.x,
             y=mark.y,
+            photo_count=photo_count,
             created_at=mark.created_at
         )
