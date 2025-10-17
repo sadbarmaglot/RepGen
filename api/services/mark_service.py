@@ -3,6 +3,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
+import asyncio
 from api.models.entities import Mark, Plan, Photo
 from api.models.requests import MarkCreateRequest, MarkUpdateRequest
 from api.models.responses import (
@@ -200,14 +201,29 @@ class MarkService:
         
         marks = result.scalars().all()
         
+        # Собираем все фотографии для параллельной генерации signed URLs
+        all_photos = []
+        mark_photo_mapping = {}  # {mark_id: [photos]}
+        
+        for mark in marks:
+            mark_photo_mapping[mark.id] = list(mark.photos)
+            all_photos.extend(mark.photos)
+        
+        # Генерируем signed URLs для всех фотографий параллельно
+        photo_tasks = [self._photo_to_response(photo) for photo in all_photos]
+        all_photo_responses = await asyncio.gather(*photo_tasks)
+        
+        # Создаем индекс для быстрого доступа к photo responses
+        photo_response_map = {photo.id: response for photo, response in zip(all_photos, all_photo_responses)}
+        
         # Преобразуем метки с фотографиями
         mark_responses = []
         for mark in marks:
-            # Фотографии уже загружены благодаря selectinload
-            photo_responses = []
-            for photo in mark.photos:
-                photo_response = await self._photo_to_response(photo)
-                photo_responses.append(photo_response)
+            # Получаем photo responses для этой метки
+            photo_responses = [
+                photo_response_map[photo.id] 
+                for photo in mark_photo_mapping[mark.id]
+            ]
             
             # Создаем ответ с меткой и фотографиями
             mark_response = MarkWithPhotosResponse(
