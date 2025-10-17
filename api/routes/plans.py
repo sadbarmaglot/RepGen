@@ -3,13 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services.database import get_db
 from api.services.plan_service import PlanService
+from api.services.mark_service import MarkService
 from api.models.requests import (
     PlanCreateRequest, 
     PlanUpdateRequest
 )
 from api.models.responses import (
     PlanResponse, 
-    PlanListResponse
+    PlanListResponse,
+    MarkWithPhotosListResponse
 )
 from api.dependencies.auth_dependencies import get_current_user
 from api.dependencies.access_dependencies import check_plan_access
@@ -111,6 +113,24 @@ async def delete_plan(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="План не найден или у вас нет прав доступа к нему"
             )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@router.get("/{plan_id}/marks-with-photos", response_model=MarkWithPhotosListResponse)
+async def get_plan_marks_with_photos(
+    plan_id: int,
+    skip: int = Query(0, ge=0, description="Количество пропускаемых записей"),
+    limit: int = Query(500, ge=1, le=1000, description="Максимальное количество записей"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Получение всех отметок плана со всеми их фотографиями"""
+    try:
+        mark_service = MarkService(db)
+        return await mark_service.get_plan_marks_with_photos(plan_id, current_user.id, skip, limit)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

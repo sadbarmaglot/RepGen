@@ -4,8 +4,16 @@ from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from api.models.entities import Mark, Plan, Photo
 from api.models.requests import MarkCreateRequest, MarkUpdateRequest
-from api.models.responses import MarkResponse, MarkListResponse
+from api.models.responses import (
+    MarkResponse, 
+    MarkListResponse, 
+    MarkWithPhotosResponse, 
+    MarkWithPhotosListResponse,
+    PhotoResponse
+)
 from api.services.access_control_service import AccessControlService
+from common.gc_utils import create_signed_url
+from api.services.redis_service import redis_service
 
 class MarkService:
     def __init__(self, db: AsyncSession):
@@ -165,6 +173,94 @@ class MarkService:
         except IntegrityError as e:
             await self.db.rollback()
             raise ValueError(f"Ошибка при удалении отметки: {str(e)}")
+
+    async def get_plan_marks_with_photos(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 500) -> MarkWithPhotosListResponse:
+        """Получение списка отметок плана со всеми фотографиями для каждой метки"""
+        
+        # Проверяем доступ к плану
+        if not await self.access_control.check_plan_access(plan_id, user_id):
+            raise ValueError("План не найден или у вас нет прав доступа к нему")
+        
+        # Получаем общее количество отметок
+        count_result = await self.db.execute(
+            select(Mark).where(Mark.plan_id == plan_id)
+        )
+        total = len(count_result.scalars().all())
+        
+        # Получаем отметки с пагинацией
+        result = await self.db.execute(
+            select(Mark)
+            .where(Mark.plan_id == plan_id)
+            .order_by(Mark.id)
+            .offset(skip)
+            .limit(limit)
+        )
+        
+        marks = result.scalars().all()
+        
+        mark_responses = []
+        for mark in marks:
+            # Получаем все фотографии для метки
+            photos_result = await self.db.execute(
+                select(Photo)
+                .where(Photo.mark_id == mark.id)
+                .order_by(Photo.id)
+            )
+            photos = photos_result.scalars().all()
+            
+            # Преобразуем фотографии в PhotoResponse
+            photo_responses = []
+            for photo in photos:
+                photo_response = await self._photo_to_response(photo)
+                photo_responses.append(photo_response)
+            
+            # Создаем ответ с меткой и фотографиями
+            mark_response = MarkWithPhotosResponse(
+                id=mark.id,
+                plan_id=mark.plan_id,
+                name=mark.name,
+                description=mark.description,
+                type=mark.type,
+                x=mark.x,
+                y=mark.y,
+                photos=photo_responses,
+                created_at=mark.created_at
+            )
+            mark_responses.append(mark_response)
+        
+        return MarkWithPhotosListResponse(
+            marks=mark_responses,
+            total=total
+        )
+
+    async def _photo_to_response(self, photo: Photo) -> PhotoResponse:
+        """Преобразование модели Photo в PhotoResponse с подписным URL"""
+        image_url = None
+        if photo.image_name:
+            try:
+                # Сначала проверяем кэш Redis
+                cached_url = await redis_service.get_signed_url(photo.image_name)
+                if cached_url:
+                    image_url = cached_url
+                else:
+                    # Если нет в кэше, создаем новый подписанный URL
+                    image_url = await create_signed_url(photo.image_name, expiration_minutes=60)
+                    # Сохраняем в кэш с TTL = 60 минут (3600 секунд)
+                    await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3600)
+            except Exception as e:
+                # Логируем ошибку, но не прерываем выполнение
+                print(f"Ошибка создания подписного URL для {photo.image_name}: {e}")
+                image_url = None
+        
+        return PhotoResponse(
+            id=photo.id,
+            mark_id=photo.mark_id,
+            image_name=photo.image_name,
+            image_url=image_url,
+            type=photo.type,
+            description=photo.description,
+            created_at=photo.created_at
+        )
 
     def _mark_to_response(self, mark: Mark, photo_count: Optional[int] = None) -> MarkResponse:
         """Преобразование модели Mark в MarkResponse"""
