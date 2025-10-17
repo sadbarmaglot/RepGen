@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from api.models.entities import Mark, Plan, Photo
@@ -175,7 +176,7 @@ class MarkService:
             raise ValueError(f"Ошибка при удалении отметки: {str(e)}")
 
     async def get_plan_marks_with_photos(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 500) -> MarkWithPhotosListResponse:
-        """Получение списка отметок плана со всеми фотографиями для каждой метки"""
+        """Получение списка отметок плана со всеми фотографиями для каждой метки (оптимизировано)"""
         
         # Проверяем доступ к плану
         if not await self.access_control.check_plan_access(plan_id, user_id):
@@ -183,13 +184,14 @@ class MarkService:
         
         # Получаем общее количество отметок
         count_result = await self.db.execute(
-            select(Mark).where(Mark.plan_id == plan_id)
+            select(func.count(Mark.id)).where(Mark.plan_id == plan_id)
         )
-        total = len(count_result.scalars().all())
+        total = count_result.scalar() or 0
         
-        # Получаем отметки с пагинацией
+        # Получаем отметки с фотографиями за один запрос используя eager loading
         result = await self.db.execute(
             select(Mark)
+            .options(selectinload(Mark.photos))
             .where(Mark.plan_id == plan_id)
             .order_by(Mark.id)
             .offset(skip)
@@ -198,19 +200,12 @@ class MarkService:
         
         marks = result.scalars().all()
         
+        # Преобразуем метки с фотографиями
         mark_responses = []
         for mark in marks:
-            # Получаем все фотографии для метки
-            photos_result = await self.db.execute(
-                select(Photo)
-                .where(Photo.mark_id == mark.id)
-                .order_by(Photo.id)
-            )
-            photos = photos_result.scalars().all()
-            
-            # Преобразуем фотографии в PhotoResponse
+            # Фотографии уже загружены благодаря selectinload
             photo_responses = []
-            for photo in photos:
+            for photo in mark.photos:
                 photo_response = await self._photo_to_response(photo)
                 photo_responses.append(photo_response)
             
