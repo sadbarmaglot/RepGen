@@ -24,24 +24,27 @@ async def create_signed_url(blob_name: str, expiration_minutes: int = 60) -> str
     Returns:
         str: Подписной URL для доступа к изображению
     """
-    blob = bucket.blob(blob_name)
+    import asyncio
     
-    # Проверяем, что файл существует
-    if not blob.exists():
-        raise FileNotFoundError(f"Файл {blob_name} не найден в бакете")
+    blob = bucket.blob(blob_name)
     
     # Создаем подписной URL с указанным временем жизни
     expiration_time = datetime.utcnow() + timedelta(minutes=expiration_minutes)
     
-    # Создаем подписной URL с правами на чтение
-    signed_url = blob.generate_signed_url(
-        version="v4",
-        expiration=expiration_time,
-        method="GET",
-        response_type="image/*"
-    )
-    
-    return signed_url
+    # Запускаем блокирующую операцию GCS в отдельном потоке
+    # asyncio.to_thread позволяет выполнять синхронные операции параллельно
+    try:
+        signed_url = await asyncio.to_thread(
+            blob.generate_signed_url,
+            version="v4",
+            expiration=expiration_time,
+            method="GET",
+            response_type="image/*"
+        )
+        return signed_url
+    except Exception as e:
+        # Файл не существует или другая ошибка
+        raise FileNotFoundError(f"Не удалось создать signed URL для {blob_name}: {e}")
 
 async def upload_to_gcs_with_blob(file_path, suffix):
     """
