@@ -24,29 +24,24 @@ async def create_signed_url(blob_name: str, expiration_minutes: int = 60) -> str
     Returns:
         str: Подписной URL для доступа к изображению
     """
-    try:
-        blob = bucket.blob(blob_name)
-        
-        # Проверяем, что файл существует
-        if not blob.exists():
-            raise Exception(f"Файл {blob_name} не найден в бакете")
-        
-        # Создаем подписной URL с указанным временем жизни
-        expiration_time = datetime.utcnow() + timedelta(minutes=expiration_minutes)
-        
-        # Создаем подписной URL с правами на чтение
-        signed_url = blob.generate_signed_url(
-            version="v4",
-            expiration=expiration_time,
-            method="GET",
-            response_type="image/*"
-        )
-        
-        return signed_url
-        
-    except Exception as e:
-        print(f"Ошибка при создании подписного URL для {blob_name}: {e}")
-        raise
+    blob = bucket.blob(blob_name)
+    
+    # Проверяем, что файл существует
+    if not blob.exists():
+        raise FileNotFoundError(f"Файл {blob_name} не найден в бакете")
+    
+    # Создаем подписной URL с указанным временем жизни
+    expiration_time = datetime.utcnow() + timedelta(minutes=expiration_minutes)
+    
+    # Создаем подписной URL с правами на чтение
+    signed_url = blob.generate_signed_url(
+        version="v4",
+        expiration=expiration_time,
+        method="GET",
+        response_type="image/*"
+    )
+    
+    return signed_url
 
 async def upload_to_gcs_with_blob(file_path, suffix):
     """

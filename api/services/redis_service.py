@@ -24,8 +24,8 @@ class RedisService:
         """Получение значения по ключу"""
         try:
             return await self.redis_client.get(key)
-        except Exception as e:
-            print(f"Ошибка получения из Redis для ключа {key}: {e}")
+        except Exception:
+            # Тихо обрабатываем ошибку - Redis недоступен, вернем None
             return None
     
     async def set(self, key: str, value: str, ttl_seconds: Optional[int] = None) -> bool:
