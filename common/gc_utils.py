@@ -6,8 +6,9 @@ import mimetypes
 from google.cloud import storage
 from PIL import Image
 from typing import Tuple, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
+from api.services.redis_service import redis_service
 from settings import PROJECT_ID, BUCKET_NAME
 
 storage_client = storage.Client(project=PROJECT_ID)
@@ -23,16 +24,11 @@ async def create_signed_url(blob_name: str, expiration_minutes: int = 60) -> str
         
     Returns:
         str: Подписной URL для доступа к изображению
-    """
-    import asyncio
-    
+    """    
     blob = bucket.blob(blob_name)
     
-    # Создаем подписной URL с указанным временем жизни
-    expiration_time = datetime.utcnow() + timedelta(minutes=expiration_minutes)
+    expiration_time = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
     
-    # Запускаем блокирующую операцию GCS в отдельном потоке
-    # asyncio.to_thread позволяет выполнять синхронные операции параллельно
     try:
         signed_url = await asyncio.to_thread(
             blob.generate_signed_url,
@@ -197,7 +193,7 @@ async def list_model_comparison_images(prefix: str = "model_comparison", max_res
 
 async def delete_blob_by_name(blob_name: str) -> bool:
     """
-    Удаляет файл из GCP bucket по названию
+    Удаляет файл из GCP bucket по названию и очищает кеш подписанного URL
     
     Args:
         blob_name: Имя файла для удаления
@@ -214,6 +210,12 @@ async def delete_blob_by_name(blob_name: str) -> bool:
             return False
         
         blob.delete()
+        
+        try:
+            await redis_service.clear_signed_url(blob_name)
+        except Exception as cache_error:
+            print(f"Ошибка при очистке кеша для {blob_name}: {cache_error}")
+        
         print(f"Файл {blob_name} успешно удален из бакета")
         return True
     except Exception as e:
@@ -222,7 +224,7 @@ async def delete_blob_by_name(blob_name: str) -> bool:
 
 async def delete_model_comparison_image(filename: str) -> bool:
     """
-    Удаляет изображение для сравнения моделей из GCP bucket
+    Удаляет изображение для сравнения моделей из GCP bucket и очищает кеш
     
     Args:
         filename: Имя файла для удаления
@@ -233,6 +235,12 @@ async def delete_model_comparison_image(filename: str) -> bool:
     try:
         blob = bucket.blob(filename)
         blob.delete()
+        
+        try:
+            await redis_service.clear_signed_url(filename)
+        except Exception as cache_error:
+            print(f"Ошибка при очистке кеша для {filename}: {cache_error}")
+        
         return True
     except Exception as e:
         print(f"Ошибка при удалении файла {filename}: {e}")

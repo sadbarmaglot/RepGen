@@ -140,10 +140,8 @@ class PlanService:
             await self.db.delete(plan)
             await self.db.commit()
             
-            # Удаляем изображение из blob storage и очищаем кэш
             if plan.image_name:
                 await delete_blob_by_name(plan.image_name)
-                await redis_service.clear_signed_url(plan.image_name)
             
             return True
         except IntegrityError as e:
@@ -160,7 +158,7 @@ class PlanService:
                     image_url = cached_url
                 else:
                     image_url = await create_signed_url(plan.image_name, expiration_minutes=60)
-                    await redis_service.cache_signed_url(plan.image_name, image_url, ttl_seconds=3600)
+                    await redis_service.cache_signed_url(plan.image_name, image_url, ttl_seconds=3000)
             except Exception as e:
                 print(f"Ошибка создания подписного URL для {plan.image_name}: {e}")
                 image_url = None

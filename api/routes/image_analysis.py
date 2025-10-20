@@ -73,7 +73,7 @@ async def analyze_construction_type(
         else:
             logger.info(f"Создание нового signed URL для {request.image_name}")
             image_url = await create_signed_url(request.image_name, expiration_minutes=60)
-            await redis_service.cache_signed_url(request.image_name, image_url, ttl_seconds=3600)
+            await redis_service.cache_signed_url(request.image_name, image_url, ttl_seconds=3000)
         
         result = await construction_analyzer.analyze_construction_type(
             image_url=image_url,
@@ -108,7 +108,7 @@ async def analyze_defect_description(
         else:
             logger.info(f"Создание нового signed URL для {request.image_name}")
             image_url = await create_signed_url(request.image_name, expiration_minutes=60)
-            await redis_service.cache_signed_url(request.image_name, image_url, ttl_seconds=3600)
+            await redis_service.cache_signed_url(request.image_name, image_url, ttl_seconds=3000)
         
         result = await construction_analyzer.analyze_defect_description(
             image_url=image_url,

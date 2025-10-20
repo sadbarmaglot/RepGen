@@ -163,8 +163,7 @@ class PhotoService:
                 else:
                     # Если нет в кэше, создаем новый подписанный URL
                     image_url = await create_signed_url(photo.image_name, expiration_minutes=60)
-                    # Сохраняем в кэш с TTL = 60 минут (3600 секунд)
-                    await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3600)
+                    await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
             except Exception:
                 # Тихо обрабатываем ошибку (файл не существует или Redis недоступен)
                 image_url = None
