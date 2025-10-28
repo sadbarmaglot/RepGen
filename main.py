@@ -23,6 +23,7 @@ from api.models.config import (
     DefectAnalysisRequest, DefectAnalysisResponse
 )
 from api.routes.auth import router as auth_router
+from api.routes.users import router as users_router
 from api.routes.projects import router as projects_router
 from api.routes.objects import router as objects_router
 from api.routes.object_members import router as object_members_router
@@ -64,6 +65,7 @@ app.add_middleware(
 app.add_middleware(UserLoggingMiddleware)
 
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(objects_router)
 app.include_router(object_members_router)
