@@ -10,4 +10,5 @@ class MarkType(enum.Enum):
     defect = "defect"
     overview = "overview"
     exposure = "exposure"
+    measurement = "measurement"
     other = "other"

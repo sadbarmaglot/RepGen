@@ -44,7 +44,8 @@ class MarkService:
             description=mark_data.description,
             type=mark_data.type,
             x=mark_data.x,
-            y=mark_data.y
+            y=mark_data.y,
+            is_horizontal=mark_data.is_horizontal if mark_data.is_horizontal is not None else True
         )
         
         try:
@@ -144,6 +145,8 @@ class MarkService:
             mark.x = mark_data.x
         if mark_data.y is not None:
             mark.y = mark_data.y
+        if mark_data.is_horizontal is not None:
+            mark.is_horizontal = mark_data.is_horizontal
         
         try:
             await self.db.commit()
@@ -234,6 +237,7 @@ class MarkService:
                 type=mark.type,
                 x=mark.x,
                 y=mark.y,
+                is_horizontal=mark.is_horizontal,
                 photos=photo_responses,
                 created_at=mark.created_at
             )
@@ -282,6 +286,7 @@ class MarkService:
             type=mark.type,
             x=mark.x,
             y=mark.y,
+            is_horizontal=mark.is_horizontal,
             photo_count=photo_count,
             created_at=mark.created_at
         )

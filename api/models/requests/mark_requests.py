@@ -11,6 +11,7 @@ class MarkCreateRequest(BaseModel):
     type: MarkType = Field(default=MarkType.other, description="Тип отметки")
     x: Optional[Decimal] = Field(None, ge=0, le=1, description="Координата X (от 0 до 1, не зависит от размеров изображения)")
     y: Optional[Decimal] = Field(None, ge=0, le=1, description="Координата Y (от 0 до 1, не зависит от размеров изображения)")
+    is_horizontal: Optional[bool] = Field(default=True, description="Горизонтальная линия измерения")
 
 class MarkUpdateRequest(BaseModel):
     """Запрос на обновление отметки"""
@@ -19,3 +20,4 @@ class MarkUpdateRequest(BaseModel):
     type: Optional[MarkType] = Field(None, description="Новый тип отметки")
     x: Optional[Decimal] = Field(None, ge=0, le=1, description="Новая координата X (от 0 до 1, не зависит от размеров изображения)")
     y: Optional[Decimal] = Field(None, ge=0, le=1, description="Новая координата Y (от 0 до 1, не зависит от размеров изображения)")
+    is_horizontal: Optional[bool] = Field(None, description="Горизонтальная линия измерения")

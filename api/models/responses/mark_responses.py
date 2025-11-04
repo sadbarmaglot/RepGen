@@ -14,6 +14,7 @@ class MarkResponse(BaseModel):
     type: MarkType = Field(..., description="Тип отметки")
     x: Optional[Decimal] = Field(None, description="Координата X (от 0 до 1, не зависит от размеров изображения)")
     y: Optional[Decimal] = Field(None, description="Координата Y (от 0 до 1, не зависит от размеров изображения)")
+    is_horizontal: bool = Field(..., description="Горизонтальная линия измерения")
     photo_count: Optional[int] = Field(None, description="Количество фотографий для этой метки")
     created_at: datetime = Field(..., description="Дата создания отметки")
     
@@ -35,6 +36,7 @@ class MarkWithPhotosResponse(BaseModel):
     type: MarkType = Field(..., description="Тип отметки")
     x: Optional[Decimal] = Field(None, description="Координата X (от 0 до 1, не зависит от размеров изображения)")
     y: Optional[Decimal] = Field(None, description="Координата Y (от 0 до 1, не зависит от размеров изображения)")
+    is_horizontal: bool = Field(..., description="Горизонтальная линия измерения")
     photos: list[PhotoResponse] = Field(default_factory=list, description="Фотографии метки")
     created_at: datetime = Field(..., description="Дата создания отметки")
     
