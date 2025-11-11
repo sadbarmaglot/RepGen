@@ -45,7 +45,9 @@ class MarkService:
             type=mark_data.type,
             x=mark_data.x,
             y=mark_data.y,
-            is_horizontal=mark_data.is_horizontal if mark_data.is_horizontal is not None else True
+            is_horizontal=mark_data.is_horizontal if mark_data.is_horizontal is not None else True,
+            defect_volume_value=mark_data.defect_volume_value,
+            defect_volume_unit=mark_data.defect_volume_unit
         )
         
         try:
@@ -147,6 +149,10 @@ class MarkService:
             mark.y = mark_data.y
         if mark_data.is_horizontal is not None:
             mark.is_horizontal = mark_data.is_horizontal
+        if mark_data.defect_volume_value is not None:
+            mark.defect_volume_value = mark_data.defect_volume_value
+        if mark_data.defect_volume_unit is not None:
+            mark.defect_volume_unit = mark_data.defect_volume_unit
         
         try:
             await self.db.commit()
@@ -238,6 +244,8 @@ class MarkService:
                 x=mark.x,
                 y=mark.y,
                 is_horizontal=mark.is_horizontal,
+                defect_volume_value=mark.defect_volume_value,
+                defect_volume_unit=mark.defect_volume_unit,
                 photos=photo_responses,
                 created_at=mark.created_at
             )
@@ -287,6 +295,8 @@ class MarkService:
             x=mark.x,
             y=mark.y,
             is_horizontal=mark.is_horizontal,
+            defect_volume_value=mark.defect_volume_value,
+            defect_volume_unit=mark.defect_volume_unit,
             photo_count=photo_count,
             created_at=mark.created_at
         )

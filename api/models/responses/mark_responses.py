@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
-from ..database.enums import MarkType
+from ..database.enums import MarkType, MarkVolumeUnit
 from .photo_responses import PhotoResponse
 
 class MarkResponse(BaseModel):
@@ -15,6 +15,8 @@ class MarkResponse(BaseModel):
     x: Optional[Decimal] = Field(None, description="Координата X (от 0 до 1, не зависит от размеров изображения)")
     y: Optional[Decimal] = Field(None, description="Координата Y (от 0 до 1, не зависит от размеров изображения)")
     is_horizontal: bool = Field(..., description="Горизонтальная линия измерения")
+    defect_volume_value: Optional[Decimal] = Field(None, description="Значение объема дефекта")
+    defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Единица измерения объема дефекта")
     photo_count: Optional[int] = Field(None, description="Количество фотографий для этой метки")
     created_at: datetime = Field(..., description="Дата создания отметки")
     
@@ -37,6 +39,8 @@ class MarkWithPhotosResponse(BaseModel):
     x: Optional[Decimal] = Field(None, description="Координата X (от 0 до 1, не зависит от размеров изображения)")
     y: Optional[Decimal] = Field(None, description="Координата Y (от 0 до 1, не зависит от размеров изображения)")
     is_horizontal: bool = Field(..., description="Горизонтальная линия измерения")
+    defect_volume_value: Optional[Decimal] = Field(None, description="Значение объема дефекта")
+    defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Единица измерения объема дефекта")
     photos: list[PhotoResponse] = Field(default_factory=list, description="Фотографии метки")
     created_at: datetime = Field(..., description="Дата создания отметки")
     
