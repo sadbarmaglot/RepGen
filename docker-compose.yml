@@ -1,13 +1,4 @@
 services:
-  bot:
-    build: .
-    container_name: repgen-bot
-    env_file:
-      - .env
-    volumes:
-      - ./secrets:/app/secrets:ro
-      - ./whitelist.json:/app/whitelist.json
-    restart: unless-stopped
   defect-analysis-api:
     build: .
     container_name: defect-analysis-api
