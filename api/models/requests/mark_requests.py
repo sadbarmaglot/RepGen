@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from decimal import Decimal
-from ..database.enums import MarkType, MarkVolumeUnit
+from ..database.enums import MarkType, MarkVolumeUnit, DefectType
 
 class MarkCreateRequest(BaseModel):
     """Запрос на создание отметки"""
@@ -14,6 +14,7 @@ class MarkCreateRequest(BaseModel):
     is_horizontal: Optional[bool] = Field(default=True, description="Горизонтальная линия измерения")
     defect_volume_value: Optional[Decimal] = Field(None, ge=0, description="Значение объема дефекта")
     defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Единица измерения объема дефекта")
+    defect_type: Optional[DefectType] = Field(None, description="Тип дефекта")
 
 class MarkUpdateRequest(BaseModel):
     """Запрос на обновление отметки"""
@@ -25,3 +26,4 @@ class MarkUpdateRequest(BaseModel):
     is_horizontal: Optional[bool] = Field(None, description="Горизонтальная линия измерения")
     defect_volume_value: Optional[Decimal] = Field(None, ge=0, description="Новое значение объема дефекта")
     defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Новая единица измерения объема дефекта")
+    defect_type: Optional[DefectType] = Field(None, description="Новый тип дефекта")

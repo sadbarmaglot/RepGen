@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..database.base import Base
-from ..database.enums import MarkType, MarkVolumeUnit
+from ..database.enums import MarkType, MarkVolumeUnit, DefectType
 
 class Mark(Base):
     """Модель отметки"""
@@ -19,6 +19,7 @@ class Mark(Base):
     is_horizontal = Column(Boolean, nullable=False, default=True, comment="Горизонтальная линия измерения")
     defect_volume_value = Column(Numeric(12, 2), nullable=True, comment="Значение объема дефекта")
     defect_volume_unit = Column(Enum(MarkVolumeUnit, name="mark_volume_unit"), nullable=True)
+    defect_type = Column(Enum(DefectType, name="defect_type"), nullable=True, comment="Тип дефекта")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с планом

@@ -1,5 +1,5 @@
 # Database models
-from .database import Base, GlobalRoleType, MarkType
+from .database import Base, GlobalRoleType, MarkType, DefectType
 
 # Entity models
 from .entities import User, Project, Object, Plan, Mark, Photo
@@ -75,6 +75,7 @@ __all__ = [
     "Base",
     "GlobalRoleType", 
     "MarkType",
+    "DefectType",
     # Entities
     "User",
     "Project",
