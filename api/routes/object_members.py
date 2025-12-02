@@ -68,7 +68,7 @@ async def get_object_members(
     """Получение списка участников объекта"""
     try:
         service = ObjectMemberService(db)
-        return await service.get_object_members(object_id, current_user.id, skip, limit)
+        return await service.get_object_members(object_id, current_user, skip, limit)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

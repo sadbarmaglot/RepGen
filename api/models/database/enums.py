@@ -5,6 +5,12 @@ class GlobalRoleType(enum.Enum):
     user = "user"
     admin = "admin"
 
+class RoleType(enum.Enum):
+    """Типы ролей пользователей (группы)"""
+    sr = "sr"
+    npk = "npk"
+    all = "all"
+
 class MarkType(enum.Enum):
     """Типы отметок"""
     defect = "defect"

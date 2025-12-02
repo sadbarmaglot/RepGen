@@ -15,17 +15,29 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/", response_model=List[UserResponse])
 async def get_all_users(
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Получение списка всех пользователей в системе
+    Получение списка пользователей в системе
     
-    Требует аутентификации. Возвращает список всех пользователей с их основной информацией.
+    Требует аутентификации. 
+    - Администраторы видят всех пользователей
+    - Обычные пользователи видят только пользователей из своей группы (role_type)
     """
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
-    users = result.scalars().all()
+    auth_service = AuthService(db)
+    is_admin = auth_service.is_admin(current_user)
     
+    if is_admin:
+        result = await db.execute(select(User).order_by(User.created_at.desc()))
+    else:
+        result = await db.execute(
+            select(User)
+            .where(User.role_type == current_user.role_type)
+            .order_by(User.created_at.desc())
+        )
+    
+    users = result.scalars().all()
     return [UserResponse.model_validate(user) for user in users]
 
 

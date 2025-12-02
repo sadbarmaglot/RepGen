@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..database.base import Base
-from ..database.enums import GlobalRoleType
+from ..database.enums import GlobalRoleType, RoleType
 
 class User(Base):
     """Модель пользователя"""
@@ -14,6 +14,7 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     name = Column(String(255), nullable=True)
     global_role = Column(Enum(GlobalRoleType, name="global_role_type"), nullable=False, default=GlobalRoleType.user)
+    role_type = Column(Enum(RoleType, name="role_type_enum"), nullable=False, default=RoleType.all)
     refresh_token = Column(Text, nullable=True)
     refresh_token_expires = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

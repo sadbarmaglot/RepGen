@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from api.models.entities import ObjectMember, Object, User, Project
 from api.models.requests import ObjectMemberAssignRequest, ObjectMemberUnassignRequest
 from api.models.responses import ObjectMemberResponse, ObjectMemberListResponse
+from api.models.database.enums import GlobalRoleType
 
 class ObjectMemberService:
     def __init__(self, db: AsyncSession):
@@ -135,27 +136,42 @@ class ObjectMemberService:
     async def get_object_members(
         self, 
         object_id: int, 
-        request_user_id: int, 
+        request_user: User, 
         skip: int = 0, 
         limit: int = 100
     ) -> ObjectMemberListResponse:
         """Получение списка участников объекта"""
         
         # Проверяем доступ к объекту
-        if not await self._check_object_access(object_id, request_user_id):
+        if not await self._check_object_access(object_id, request_user.id):
             raise ValueError("У вас нет доступа к этому объекту")
         
-        # Получаем общее количество участников
-        count_result = await self.db.execute(
-            select(ObjectMember).where(ObjectMember.object_id == object_id)
+        is_admin = request_user.global_role == GlobalRoleType.admin
+        
+        members_query = (
+            select(ObjectMember)
+            .options(selectinload(ObjectMember.user))
+            .where(ObjectMember.object_id == object_id)
         )
+        
+        count_query = select(ObjectMember).where(ObjectMember.object_id == object_id)
+        
+        if not is_admin:
+            user_ids_subquery = (
+                select(User.id)
+                .where(User.role_type == request_user.role_type)
+            )
+            
+            members_query = members_query.where(ObjectMember.user_id.in_(user_ids_subquery))
+            count_query = count_query.where(ObjectMember.user_id.in_(user_ids_subquery))
+        
+        # Получаем общее количество участников
+        count_result = await self.db.execute(count_query)
         total = len(count_result.scalars().all())
         
         # Получаем участников с информацией о пользователях
         result = await self.db.execute(
-            select(ObjectMember)
-            .options(selectinload(ObjectMember.user))
-            .where(ObjectMember.object_id == object_id)
+            members_query
             .offset(skip)
             .limit(limit)
         )
