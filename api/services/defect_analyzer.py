@@ -132,14 +132,14 @@ class DefectAnalyzer:
             else:
                 mime_type = "image/jpeg"  # по умолчанию
             
-            # Конфигурация для gpt-4o-mini с дефолтными параметрами
+            # Конфигурация для gpt-5.1 с дефолтными параметрами
             config = {
-                "model_name": "gpt-4o",
+                "model_name": "gpt-5.1",
                 "temperature": 0.2,
                 "max_tokens": 1024
             }
             
-            logger.info(f"Начинаю анализ изображения {image_name} с моделью gpt-4o-mini")
+            logger.info(f"Начинаю анализ изображения {image_name} с моделью gpt-5.1")
             if construction_type is not None:
                 logger.info(f"Используется фильтрация по типу конструкции: {construction_type}")
             

@@ -29,8 +29,8 @@ REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 часа
-JWT_REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 дней
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 дней
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = 60  # 60 дней
 
 ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 

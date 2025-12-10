@@ -53,7 +53,8 @@ class OpenAIProvider(BaseModelProvider):
         self.client = OpenAI()
         self.available_models = [
             "gpt-4o-mini", 
-            "gpt-4o"
+            "gpt-4o",
+            "gpt-5.1"
             ]
     
     def is_available(self) -> bool:
