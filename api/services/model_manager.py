@@ -69,19 +69,31 @@ class OpenAIProvider(BaseModelProvider):
         config: Dict[str, Any]
         ) -> Dict[str, Any]:
         try:
-            response = await asyncio.to_thread(
-                self.client.chat.completions.create,
-                model=config.get("model_name", "gpt-4o-mini"),
-                messages=[
+            model_name = config.get("model_name", "gpt-4o-mini")
+            max_tokens_value = config.get("max_tokens", 4096)
+            
+            # Для gpt-5.1 используется max_completion_tokens вместо max_tokens
+            api_params = {
+                "model": model_name,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": [
                         {"type": "text", "text": user_prompt},
                         {"type": "image_url", "image_url": {"url": image_url}}
                     ]}
                 ],
-                temperature=config.get("temperature", 0.2),
-                max_tokens=config.get("max_tokens", 4096),
-                response_format={"type": "json_object"}
+                "temperature": config.get("temperature", 0.2),
+                "response_format": {"type": "json_object"}
+            }
+            
+            if model_name == "gpt-5.1":
+                api_params["max_completion_tokens"] = max_tokens_value
+            else:
+                api_params["max_tokens"] = max_tokens_value
+            
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
+                **api_params
             )
             
             result = json.loads(response.choices[0].message.content)
