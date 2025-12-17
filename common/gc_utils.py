@@ -5,7 +5,7 @@ import mimetypes
 
 from google.cloud import storage
 from PIL import Image
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 
 from api.services.redis_service import redis_service
@@ -14,20 +14,37 @@ from settings import PROJECT_ID, BUCKET_NAME
 storage_client = storage.Client(project=PROJECT_ID)
 bucket = storage_client.bucket(BUCKET_NAME)
 
-async def create_signed_url(blob_name: str, expiration_minutes: int = 60) -> str:
+async def create_signed_url(
+    blob_name: str, 
+    expiration_minutes: int = 60,
+    content_type: Optional[str] = None
+) -> str:
     """
-    Создает подписной URL для изображения в GCP бакете для использования с Gemini Pro
+    Создает подписной URL для файла в GCP бакете
     
     Args:
         blob_name: Имя файла в бакете
         expiration_minutes: Время жизни URL в минутах (по умолчанию 60 минут)
+        content_type: MIME тип файла (опционально, по умолчанию "image/*")
         
     Returns:
-        str: Подписной URL для доступа к изображению
+        str: Подписной URL для доступа к файлу
     """    
     blob = bucket.blob(blob_name)
     
     expiration_time = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
+    
+    # Определяем response_type на основе content_type
+    if content_type:
+        if content_type.startswith("image/"):
+            response_type = "image/*"
+        elif content_type == "application/dxf":
+            response_type = "application/dxf"
+        else:
+            response_type = content_type
+    else:
+        # По умолчанию для обратной совместимости
+        response_type = "image/*"
     
     try:
         signed_url = await asyncio.to_thread(
@@ -35,7 +52,7 @@ async def create_signed_url(blob_name: str, expiration_minutes: int = 60) -> str
             version="v4",
             expiration=expiration_time,
             method="GET",
-            response_type="image/*"
+            response_type=response_type
         )
         return signed_url
     except Exception as e:
@@ -87,6 +104,83 @@ async def upload_to_gcs(file_path, suffix):
     await loop.run_in_executor(None, blob.upload_from_filename, file_path, mime_type)
     
     return blob, blob.public_url
+
+async def download_file_from_gcs(blob_name: str) -> Tuple[bytes, str]:
+    """
+    Загружает файл из GCS по имени файла
+    
+    Args:
+        blob_name: Имя файла в GCS bucket
+        
+    Returns:
+        Tuple[bytes, str]: (байты файла, MIME тип)
+        
+    Raises:
+        FileNotFoundError: Если файл не найден в GCS
+    """
+    blob = bucket.blob(blob_name)
+    
+    # Проверяем существование файла
+    if not await asyncio.to_thread(blob.exists):
+        raise FileNotFoundError(f"Файл {blob_name} не найден в GCS bucket")
+    
+    # Загружаем содержимое файла
+    file_bytes = await asyncio.to_thread(blob.download_as_bytes)
+    
+    # Определяем MIME тип из метаданных
+    mime_type = blob.content_type or "application/octet-stream"
+    
+    return file_bytes, mime_type
+
+async def upload_file_to_gcs_with_signed_url(
+    file_path: str,
+    extension: str,
+    prefix: str = "upload",
+    content_type: Optional[str] = None,
+    expiration_minutes: int = 60
+) -> Tuple[str, str]:
+    """
+    Загружает файл в GCS с указанным префиксом и создает подписанный URL
+    
+    Args:
+        file_path: Путь к файлу на диске
+        extension: Расширение файла (без точки)
+        prefix: Префикс для имени файла
+        content_type: MIME тип файла (опционально, определяется автоматически)
+        expiration_minutes: Время жизни подписанного URL в минутах
+        
+    Returns:
+        Tuple[str, str]: (имя файла в GCS, подписанный URL)
+    """
+    # Генерируем уникальное имя файла
+    filename = f"{prefix}_{uuid.uuid4()}.{extension}"
+    blob = bucket.blob(filename)
+    
+    # Определяем MIME тип
+    if not content_type:
+        content_type, _ = mimetypes.guess_type(file_path)
+        if not content_type:
+            # Определяем по расширению
+            if extension.lower() == "png":
+                content_type = "image/png"
+            elif extension.lower() == "dxf":
+                content_type = "application/dxf"
+            elif extension.lower() in ["jpg", "jpeg"]:
+                content_type = "image/jpeg"
+            else:
+                content_type = "application/octet-stream"
+    
+    # Устанавливаем content type
+    blob.content_type = content_type
+    
+    # Загружаем файл в GCS
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, blob.upload_from_filename, file_path)
+    
+    # Создаем подписанный URL
+    signed_url = await create_signed_url(filename, expiration_minutes, content_type)
+    
+    return filename, signed_url
 
 async def upload_pil_image_to_gcs(image: Image.Image, filename_prefix: str = "model_comparison") -> Tuple[str, str]:
     """

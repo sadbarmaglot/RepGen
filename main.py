@@ -32,6 +32,7 @@ from api.routes.plans import router as plans_router
 from api.routes.marks import router as marks_router
 from api.routes.photos import router as photos_router
 from api.routes.image_analysis import router as image_analysis_router
+from api.routes.focus_api import router as focus_api_router
 from api.middleware.logging_middleware import UserLoggingMiddleware
 
 # Настройка логирования
@@ -74,6 +75,7 @@ app.include_router(marks_router)
 app.include_router(photos_router)
 app.include_router(upload_router)
 app.include_router(image_analysis_router)
+app.include_router(focus_api_router)
 
 handlers = BotHandlers(
     whitelist=load_whitelist(),

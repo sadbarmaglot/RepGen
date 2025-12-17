@@ -40,6 +40,10 @@ from .construction_responses import (
 from .image_analysis_responses import (
     ImageAnalysisResponse
 )
+from .focus_api_responses import (
+    FocusImageProcessResponse,
+    FileUrlInfo
+)
 
 __all__ = [
     # Auth responses
@@ -73,5 +77,8 @@ __all__ = [
     "DefectDescriptionResponse",
     "DefectDescriptionResult",
     # Image analysis responses
-    "ImageAnalysisResponse"
+    "ImageAnalysisResponse",
+    # Focus API responses
+    "FocusImageProcessResponse",
+    "FileUrlInfo"
 ]

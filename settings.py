@@ -27,6 +27,11 @@ PATH_PG_DATA = os.environ.get("PATH_PG_DATA", "./postgres_data")
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 
+# Focus API configuration
+FOCUS_API_URL = os.environ.get("FOCUS_API_URL")
+FOCUS_API_KEY = os.environ.get("FOCUS_API_KEY")
+FOCUS_API_SECRET = os.environ.get("FOCUS_API_SECRET")
+
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 дней
