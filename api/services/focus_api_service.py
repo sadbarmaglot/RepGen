@@ -6,7 +6,6 @@ import uuid
 import json
 import httpx
 import base64
-import logging
 import zipfile
 import hashlib
 import tempfile
@@ -18,8 +17,9 @@ from PIL import Image, ImageOps
 
 from settings import FOCUS_API_URL, FOCUS_API_KEY, FOCUS_API_SECRET
 from common.gc_utils import upload_file_to_gcs_with_signed_url, download_file_from_gcs
+from common.logging_utils import get_user_logger
 
-logger = logging.getLogger(__name__)
+logger = get_user_logger(__name__)
 
 
 class FocusAPIService:
