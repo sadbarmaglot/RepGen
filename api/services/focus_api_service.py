@@ -2,6 +2,7 @@ import io
 import os
 import hmac
 import time
+import uuid
 import json
 import httpx
 import base64
@@ -172,7 +173,11 @@ class FocusAPIService:
             ),
         )
     
-    async def download_image_from_gcs(self, image_name: str) -> Tuple[bytes, str]:
+    async def download_image_from_gcs(
+        self,
+        image_name: str,
+        trace_id: Optional[str] = None,
+    ) -> Tuple[bytes, str]:
         """
         Загружает изображение из GCS по имени файла
         
@@ -185,8 +190,17 @@ class FocusAPIService:
         Raises:
             HTTPException: При ошибке загрузки из GCS
         """
+        t0 = time.perf_counter()
         try:
             image_bytes, mime_type = await download_file_from_gcs(image_name)
+            logger.info(
+                "Focus API: downloaded image from GCS (trace=%s, name=%s, bytes=%s, mime=%s, %.0fms)",
+                trace_id,
+                image_name,
+                len(image_bytes),
+                mime_type,
+                (time.perf_counter() - t0) * 1000,
+            )
             return image_bytes, mime_type
         except FileNotFoundError as e:
             raise HTTPException(
@@ -195,14 +209,22 @@ class FocusAPIService:
             )
         except Exception as e:
             error_msg = f"Ошибка при загрузке изображения {image_name} из GCS: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(
+                "Focus API: GCS download failed (trace=%s, name=%s, %.0fms): %s",
+                trace_id,
+                image_name,
+                (time.perf_counter() - t0) * 1000,
+                error_msg,
+                exc_info=True,
+            )
             raise HTTPException(status_code=500, detail=error_msg)
     
     async def process_image(
         self,
         image_bytes: bytes,
         filename: str,
-        mime_type: Optional[str] = None
+        mime_type: Optional[str] = None,
+        trace_id: Optional[str] = None,
     ) -> dict:
         """
         Отправляет изображение на обработку в Focus API
@@ -218,6 +240,15 @@ class FocusAPIService:
         Raises:
             HTTPException: При ошибке запроса к API
         """
+        t_total = time.perf_counter()
+        logger.info(
+            "Focus API: process_image start (trace=%s, filename=%s, bytes=%s, mime=%s)",
+            trace_id,
+            filename,
+            len(image_bytes),
+            mime_type,
+        )
+
         if mime_type is None:
             ext = filename.lower().split('.')[-1] if '.' in filename else 'jpg'
             mime_types = {
@@ -230,37 +261,81 @@ class FocusAPIService:
             mime_type = mime_types.get(ext, 'image/jpeg')
 
         # Focus API имеет лимит по размеру изображений (6 МБ) — ужимаем сами, чтобы не падать на стороне API.
+        before_bytes = len(image_bytes)
         image_bytes, filename, mime_type = self._maybe_shrink_image_for_focus_api(
             image_bytes=image_bytes,
             filename=filename,
             mime_type=mime_type,
         )
+        after_bytes = len(image_bytes)
+        if after_bytes != before_bytes:
+            logger.info(
+                "Focus API: image shrunk (trace=%s, bytes=%s -> %s, filename=%s, mime=%s)",
+                trace_id,
+                before_bytes,
+                after_bytes,
+                filename,
+                mime_type,
+            )
         
         try:
+            t_payload = time.perf_counter()
             payload = self._prepare_image_payload(image_bytes, filename, mime_type)
+            logger.info(
+                "Focus API: payload prepared (trace=%s, payload_chars=%s, %.0fms)",
+                trace_id,
+                len(payload),
+                (time.perf_counter() - t_payload) * 1000,
+            )
             
             headers = self._prepare_headers(payload)
             
             async with httpx.AsyncClient(timeout=self.timeout) as client:
+                t_http = time.perf_counter()
                 response = await client.post(
                     self.api_url,
                     content=payload,
                     headers=headers
                 )
+                http_ms = (time.perf_counter() - t_http) * 1000
                 
                 response.raise_for_status()
                 
                 content_type = response.headers.get("content-type", "").lower()
+                logger.info(
+                    "Focus API: response received (trace=%s, status=%s, content_type=%s, bytes=%s, %.0fms)",
+                    trace_id,
+                    response.status_code,
+                    content_type,
+                    len(response.content),
+                    http_ms,
+                )
                 
                 if "application/zip" in content_type or "application/x-zip-compressed" in content_type:
                     zip_bytes = response.content
-                    return await self._process_zip_response(zip_bytes, filename)
+                    result = await self._process_zip_response(zip_bytes, filename, trace_id=trace_id)
+                    logger.info(
+                        "Focus API: process_image done (trace=%s, total=%.0fms, zip=true)",
+                        trace_id,
+                        (time.perf_counter() - t_total) * 1000,
+                    )
+                    return result
                 
                 try:
                     result = response.json()
+                    logger.info(
+                        "Focus API: process_image done (trace=%s, total=%.0fms, zip=false)",
+                        trace_id,
+                        (time.perf_counter() - t_total) * 1000,
+                    )
                     return result
                 except json.JSONDecodeError:
                     logger.warning(f"Ответ от Focus API не является JSON для файла {filename}")
+                    logger.info(
+                        "Focus API: process_image done (trace=%s, total=%.0fms, zip=false, json=false)",
+                        trace_id,
+                        (time.perf_counter() - t_total) * 1000,
+                    )
                     return {"response": response.text}
                     
         except httpx.HTTPStatusError as e:
@@ -271,18 +346,34 @@ class FocusAPIService:
                     error_msg += f" - {error_detail}"
                 except:
                     error_msg += f" - {e.response.text}"
-            logger.error(error_msg)
+            logger.error(
+                "Focus API: HTTP error (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+            )
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=error_msg
             )
         except httpx.TimeoutException:
             error_msg = f"Таймаут при запросе к Focus API (>{self.timeout}с)"
-            logger.error(error_msg)
+            logger.error(
+                "Focus API: timeout (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+            )
             raise HTTPException(status_code=504, detail=error_msg)
         except Exception as e:
             error_msg = f"Неожиданная ошибка при запросе к Focus API: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(
+                "Focus API: unexpected error (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+                exc_info=True,
+            )
             raise HTTPException(status_code=500, detail=error_msg)
     
     async def process_image_by_name(
@@ -303,13 +394,43 @@ class FocusAPIService:
         Raises:
             HTTPException: При ошибке загрузки или запроса к API
         """
-        image_bytes, detected_mime_type = await self.download_image_from_gcs(image_name)
+        trace_id = uuid.uuid4().hex[:12]
+        t_total = time.perf_counter()
+        logger.info(
+            "Focus API: process_image_by_name start (trace=%s, name=%s, requested_mime=%s)",
+            trace_id,
+            image_name,
+            mime_type,
+        )
+
+        image_bytes, detected_mime_type = await self.download_image_from_gcs(
+            image_name,
+            trace_id=trace_id,
+        )
         
         final_mime_type = mime_type or detected_mime_type
         
-        return await self.process_image(image_bytes, image_name, final_mime_type)
+        result = await self.process_image(
+            image_bytes,
+            image_name,
+            final_mime_type,
+            trace_id=trace_id,
+        )
+
+        logger.info(
+            "Focus API: process_image_by_name done (trace=%s, name=%s, total=%.0fms)",
+            trace_id,
+            image_name,
+            (time.perf_counter() - t_total) * 1000,
+        )
+        return result
     
-    async def _process_zip_response(self, zip_bytes: bytes, original_filename: str) -> Dict:
+    async def _process_zip_response(
+        self,
+        zip_bytes: bytes,
+        original_filename: str,
+        trace_id: Optional[str] = None,
+    ) -> Dict:
         """
         Обрабатывает ZIP архив от Focus API: распаковывает, загружает PNG и DXF в GCS
         
@@ -321,7 +442,14 @@ class FocusAPIService:
             dict: Словарь с подписанными ссылками на PNG и DXF файлы
         """
         temp_dir = None
+        t_total = time.perf_counter()
         try:
+            logger.info(
+                "Focus API: ZIP processing start (trace=%s, zip_bytes=%s, original=%s)",
+                trace_id,
+                len(zip_bytes),
+                original_filename,
+            )
             temp_dir = tempfile.mkdtemp()
             zip_path = os.path.join(temp_dir, "response.zip")
             
@@ -331,6 +459,7 @@ class FocusAPIService:
             image_files = []  # PNG, JPG, JPEG файлы
             dxf_files = []
             
+            t_extract = time.perf_counter()
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 for file_info in zip_ref.namelist():
                     if file_info.endswith('/'):
@@ -344,6 +473,13 @@ class FocusAPIService:
                         image_files.append((extracted_path, file_ext))
                     elif file_ext == '.dxf':
                         dxf_files.append(extracted_path)
+            logger.info(
+                "Focus API: ZIP extracted (trace=%s, images=%s, dxf=%s, %.0fms)",
+                trace_id,
+                len(image_files),
+                len(dxf_files),
+                (time.perf_counter() - t_extract) * 1000,
+            )
             
             if not image_files and not dxf_files:
                 raise HTTPException(
@@ -352,6 +488,7 @@ class FocusAPIService:
                 )
             
             image_urls = []
+            t_upload_images = time.perf_counter()
             for image_path, file_ext in image_files:
                 if file_ext == '.png':
                     extension = "png"
@@ -373,8 +510,16 @@ class FocusAPIService:
                     "filename": image_name,
                     "signed_url": signed_url
                 })
+            if image_files:
+                logger.info(
+                    "Focus API: ZIP images uploaded (trace=%s, count=%s, %.0fms)",
+                    trace_id,
+                    len(image_files),
+                    (time.perf_counter() - t_upload_images) * 1000,
+                )
             
             dxf_urls = []
+            t_upload_dxf = time.perf_counter()
             for dxf_path in dxf_files:
                 dxf_name, signed_url = await upload_file_to_gcs_with_signed_url(
                     dxf_path,
@@ -386,6 +531,19 @@ class FocusAPIService:
                     "filename": dxf_name,
                     "signed_url": signed_url
                 })
+            if dxf_files:
+                logger.info(
+                    "Focus API: ZIP dxf uploaded (trace=%s, count=%s, %.0fms)",
+                    trace_id,
+                    len(dxf_files),
+                    (time.perf_counter() - t_upload_dxf) * 1000,
+                )
+
+            logger.info(
+                "Focus API: ZIP processing done (trace=%s, total=%.0fms)",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+            )
             
             return {
                 "image_files": image_urls,
@@ -395,11 +553,22 @@ class FocusAPIService:
             
         except zipfile.BadZipFile:
             error_msg = "Полученный файл не является валидным ZIP архивом"
-            logger.error(error_msg)
+            logger.error(
+                "Focus API: ZIP bad file (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+            )
             raise HTTPException(status_code=500, detail=error_msg)
         except Exception as e:
             error_msg = f"Ошибка при обработке ZIP архива: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(
+                "Focus API: ZIP processing failed (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+                exc_info=True,
+            )
             raise HTTPException(status_code=500, detail=error_msg)
         finally:
             if temp_dir and os.path.exists(temp_dir):
