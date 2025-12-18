@@ -1,3 +1,4 @@
+import io
 import os
 import hmac
 import time
@@ -12,6 +13,7 @@ import shutil
 
 from typing import Optional, Tuple, Dict
 from fastapi import HTTPException
+from PIL import Image, ImageOps
 
 from settings import FOCUS_API_URL, FOCUS_API_KEY, FOCUS_API_SECRET
 from common.gc_utils import upload_file_to_gcs_with_signed_url, download_file_from_gcs
@@ -60,6 +62,115 @@ class FocusAPIService:
             "filename": filename
         }
         return json.dumps(payload_data)
+
+    def _maybe_shrink_image_for_focus_api(
+        self,
+        image_bytes: bytes,
+        filename: str,
+        mime_type: str,
+        *,
+        max_image_bytes: int = 6_000_000,
+    ) -> Tuple[bytes, str, str]:
+        """
+        Гарантирует, что изображение не превышает лимит Focus API по размеру.
+
+        Стратегия:
+        - если уже <= max_image_bytes: вернуть как есть
+        - иначе: декодировать через Pillow, привести к RGB (с белым фоном при alpha),
+          затем попытаться сохранить в JPEG, понижая quality; если не помогает — уменьшать размер.
+
+        Returns:
+            (bytes, filename, mime_type) — возможно изменённые байты/имя/тип (обычно image/jpeg)
+        """
+        if len(image_bytes) <= max_image_bytes:
+            return image_bytes, filename, mime_type
+
+        original_size = len(image_bytes)
+        t0 = time.perf_counter()
+
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+            img = ImageOps.exif_transpose(img)
+            img.load()
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Не удалось декодировать изображение для сжатия (>{max_image_bytes} bytes): {str(e)}",
+            )
+
+        try:
+            if img.mode in ("RGBA", "LA") or ("transparency" in getattr(img, "info", {})):
+                rgba = img.convert("RGBA")
+                background = Image.new("RGB", rgba.size, (255, 255, 255))
+                background.paste(rgba, mask=rgba.split()[-1])
+                img_rgb = background
+            else:
+                img_rgb = img.convert("RGB") if img.mode != "RGB" else img
+        except Exception:
+            img_rgb = img.convert("RGB")
+
+        def _encode_jpeg(image: Image.Image, quality: int) -> bytes:
+            buf = io.BytesIO()
+            image.save(
+                buf,
+                format="JPEG",
+                quality=quality,
+                optimize=True,
+                progressive=True,
+            )
+            return buf.getvalue()
+
+        # 1) Пытаемся только quality (без ресайза)
+        for quality in (85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35):
+            candidate = _encode_jpeg(img_rgb, quality)
+            if len(candidate) <= max_image_bytes:
+                new_filename = os.path.splitext(filename)[0] + ".jpg"
+                logger.info(
+                    "Сжали изображение для Focus API (quality-only): %s -> %s bytes (q=%s, %s -> %s, %.0fms)",
+                    original_size,
+                    len(candidate),
+                    quality,
+                    filename,
+                    new_filename,
+                    (time.perf_counter() - t0) * 1000,
+                )
+                return candidate, new_filename, "image/jpeg"
+
+        # 2) Если не помогло — постепенно уменьшаем размер и снова крутим quality
+        w, h = img_rgb.size
+        # ограничиваем минимальный размер, чтобы не улететь в ноль при странных входных данных
+        min_side_limit = 320
+
+        for scale in (0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3):
+            new_w = max(int(w * scale), min_side_limit)
+            new_h = max(int(h * scale), min_side_limit)
+            if new_w == w and new_h == h:
+                continue
+
+            resized = img_rgb.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            for quality in (80, 75, 70, 65, 60, 55, 50, 45, 40, 35):
+                candidate = _encode_jpeg(resized, quality)
+                if len(candidate) <= max_image_bytes:
+                    new_filename = os.path.splitext(filename)[0] + ".jpg"
+                    logger.info(
+                        "Сжали изображение для Focus API (resize+quality): %s -> %s bytes (scale=%.2f, q=%s, %s -> %s, %.0fms)",
+                        original_size,
+                        len(candidate),
+                        scale,
+                        quality,
+                        filename,
+                        new_filename,
+                        (time.perf_counter() - t0) * 1000,
+                    )
+                    return candidate, new_filename, "image/jpeg"
+
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Изображение слишком большое для Focus API: {original_size} bytes. "
+                f"Не удалось сжать до <= {max_image_bytes} bytes."
+            ),
+        )
     
     async def download_image_from_gcs(self, image_name: str) -> Tuple[bytes, str]:
         """
@@ -117,6 +228,13 @@ class FocusAPIService:
                 'webp': 'image/webp'
             }
             mime_type = mime_types.get(ext, 'image/jpeg')
+
+        # Focus API имеет лимит по размеру изображений (6 МБ) — ужимаем сами, чтобы не падать на стороне API.
+        image_bytes, filename, mime_type = self._maybe_shrink_image_for_focus_api(
+            image_bytes=image_bytes,
+            filename=filename,
+            mime_type=mime_type,
+        )
         
         try:
             payload = self._prepare_image_payload(image_bytes, filename, mime_type)
@@ -287,5 +405,5 @@ class FocusAPIService:
             if temp_dir and os.path.exists(temp_dir):
                 try:
                     shutil.rmtree(temp_dir)
-                except Exception:
+                except Exception:   
                     shutil.rmtree(temp_dir, ignore_errors=True)
