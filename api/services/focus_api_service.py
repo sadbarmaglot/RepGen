@@ -29,7 +29,7 @@ class FocusAPIService:
         self.api_url = FOCUS_API_URL
         self.api_key = FOCUS_API_KEY
         self.secret = FOCUS_API_SECRET
-        self.timeout = 120.0  # 2 минуты для долгих операций генерации плана
+        self.timeout = 300.0
         
     def _generate_signature(self, timestamp: str, body_sha256: str) -> str:
         """Генерирует HMAC подпись для запроса"""
