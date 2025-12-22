@@ -13,10 +13,11 @@ class Photo(Base):
     image_name = Column(String(255), nullable=False)
     type = Column(String(100), nullable=True)
     description = Column(Text, nullable=True)
+    order = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с отметкой
     mark = relationship("Mark", back_populates="photos", lazy="select")
     
     def __repr__(self):
-        return f"<Photo(id={self.id}, mark_id={self.mark_id}, image_name='{self.image_name}', type='{self.type}')>"
+        return f"<Photo(id={self.id}, mark_id={self.mark_id}, image_name='{self.image_name}', type='{self.type}', order={self.order})>"

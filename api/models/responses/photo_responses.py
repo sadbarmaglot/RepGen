@@ -10,6 +10,7 @@ class PhotoResponse(BaseModel):
     image_url: Optional[str] = Field(None, description="Подписанный URL изображения")
     type: Optional[str] = Field(None, description="Тип фотографии")
     description: Optional[str] = Field(None, description="Описание фотографии")
+    order: Optional[int] = Field(None, description="Порядковый номер фотографии в отметке")
     created_at: datetime = Field(..., description="Дата создания фотографии")
     
     class Config:

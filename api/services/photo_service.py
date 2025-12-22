@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from api.models.entities import Photo
@@ -31,11 +31,33 @@ class PhotoService:
         if not mark:
             raise ValueError("Отметка не найдена")
         
+        # Определяем порядковый номер: если не указан, вычисляем максимальный + 1
+        if photo_data.order is not None:
+            order = photo_data.order
+        else:
+            max_order_result = await self.db.execute(
+                select(func.max(Photo.order)).where(
+                    Photo.mark_id == photo_data.mark_id,
+                    Photo.order.isnot(None)
+                )
+            )
+            max_order = max_order_result.scalar_one_or_none()
+            
+            if max_order is not None:
+                order = max_order + 1
+            else:
+                count_result = await self.db.execute(
+                    select(func.count(Photo.id)).where(Photo.mark_id == photo_data.mark_id)
+                )
+                photo_count = count_result.scalar() or 0
+                order = photo_count
+        
         photo = Photo(
             mark_id=photo_data.mark_id,
             image_name=photo_data.image_name,
             type=photo_data.type,
-            description=photo_data.description
+            description=photo_data.description,
+            order=order
         )
         
         try:
@@ -76,10 +98,11 @@ class PhotoService:
         )
         total = len(count_result.scalars().all())
         
-        # Получаем фотографии с пагинацией
+        # Получаем фотографии с пагинацией, сортируем по order (NULL значения в конце)
         result = await self.db.execute(
             select(Photo)
             .where(Photo.mark_id == mark_id)
+            .order_by(Photo.order.asc().nullslast(), Photo.id.asc())
             .offset(skip)
             .limit(limit)
         )
@@ -113,6 +136,8 @@ class PhotoService:
             photo.type = photo_data.type
         if photo_data.description is not None:
             photo.description = photo_data.description
+        if photo_data.order is not None:
+            photo.order = photo_data.order
         
         try:
             await self.db.commit()
@@ -175,5 +200,6 @@ class PhotoService:
             image_url=image_url,
             type=photo.type,
             description=photo.description,
+            order=photo.order,
             created_at=photo.created_at
         )

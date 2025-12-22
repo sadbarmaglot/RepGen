@@ -218,8 +218,10 @@ class MarkService:
         mark_photo_mapping = {}  # {mark_id: [photos]}
         
         for mark in marks:
-            mark_photo_mapping[mark.id] = list(mark.photos)
-            all_photos.extend(mark.photos)
+            # Сортируем фотографии по order (NULL значения в конце), затем по id
+            sorted_photos = sorted(mark.photos, key=lambda p: (p.order if p.order is not None else float('inf'), p.id))
+            mark_photo_mapping[mark.id] = sorted_photos
+            all_photos.extend(sorted_photos)
         
         # Генерируем signed URLs для всех фотографий параллельно
         photo_tasks = [self._photo_to_response(photo) for photo in all_photos]
@@ -285,6 +287,7 @@ class MarkService:
             image_url=image_url,
             type=photo.type,
             description=photo.description,
+            order=photo.order,
             created_at=photo.created_at
         )
 
