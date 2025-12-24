@@ -85,7 +85,7 @@ class MarkService:
         mark, photo_count = row
         return self._mark_to_response(mark, photo_count)
 
-    async def get_plan_marks(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 500) -> MarkListResponse:
+    async def get_plan_marks(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 2000) -> MarkListResponse:
         """Получение списка отметок плана с количеством фотографий для каждой метки"""
         
         # Проверяем доступ к плану
@@ -188,7 +188,7 @@ class MarkService:
             await self.db.rollback()
             raise ValueError(f"Ошибка при удалении отметки: {str(e)}")
 
-    async def get_plan_marks_with_photos(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 500) -> MarkWithPhotosListResponse:
+    async def get_plan_marks_with_photos(self, plan_id: int, user_id: int, skip: int = 0, limit: int = 2000) -> MarkWithPhotosListResponse:
         """Получение списка отметок плана со всеми фотографиями для каждой метки (оптимизировано)"""
         
         # Проверяем доступ к плану

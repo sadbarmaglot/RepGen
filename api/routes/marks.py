@@ -38,7 +38,7 @@ async def create_mark(
 async def get_plan_marks(
     plan_id: int,
     skip: int = Query(0, ge=0, description="Количество пропускаемых записей"),
-    limit: int = Query(500, ge=1, le=1000, description="Максимальное количество записей"),
+    limit: int = Query(2000, ge=1, le=2000, description="Максимальное количество записей"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
