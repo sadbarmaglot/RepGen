@@ -288,6 +288,7 @@ class MarkService:
             type=photo.type,
             description=photo.description,
             order=photo.order,
+            type_confidence=float(photo.type_confidence) if photo.type_confidence is not None else None,
             created_at=photo.created_at
         )
 

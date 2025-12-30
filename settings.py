@@ -45,6 +45,10 @@ GPT_MAX_WORKERS = 4
 GPT_SEM_COUNT = 1
 MODEL_NAME = "gpt-4o-mini"
 
+# Construction queue settings
+CONSTRUCTION_QUEUE_MAX_CONCURRENT = 5
+CONSTRUCTION_QUEUE_MAX_SIZE = 500
+
 class DefectStates(StatesGroup):
     uploading = State()
     

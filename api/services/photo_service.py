@@ -1,14 +1,21 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
-from api.models.entities import Photo
-from api.models.entities import Mark
+
+from api.models.entities import Mark, Photo
+from api.models.database.enums import MarkType
 from api.models.requests import PhotoCreateRequest, PhotoUpdateRequest
 from api.models.responses import PhotoResponse, PhotoListResponse
 from common.gc_utils import create_signed_url, delete_blob_by_name
+from common.logging_utils import get_user_logger
 from api.services.redis_service import redis_service
 from api.services.access_control_service import AccessControlService
+from api.services.construction_queue_service import get_construction_queue_service
+
+logger = get_user_logger(__name__)
 
 class PhotoService:
     def __init__(self, db: AsyncSession):
@@ -64,6 +71,18 @@ class PhotoService:
             self.db.add(photo)
             await self.db.commit()
             await self.db.refresh(photo)
+            
+            # Запускаем фоновую задачу для определения типа конструкции
+            # Только для отметок типа "дефект" и если тип конструкции не был указан явно
+            if mark.type == MarkType.defect and not photo_data.type and photo.image_name:
+                queue_service = get_construction_queue_service()
+                queued = await queue_service.queue_analysis(photo.id, photo.image_name)
+                if not queued:
+                    logger.warning(
+                        f"Не удалось добавить задачу определения конструкции для фото {photo.id} "
+                        f"в очередь (очередь переполнена). Статистика: {queue_service.get_queue_stats()}"
+                    )
+            
             return await self._photo_to_response(photo)
         except IntegrityError as e:
             await self.db.rollback()
@@ -201,5 +220,6 @@ class PhotoService:
             type=photo.type,
             description=photo.description,
             order=photo.order,
+            type_confidence=float(photo.type_confidence) if photo.type_confidence is not None else None,
             created_at=photo.created_at
         )

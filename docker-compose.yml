@@ -23,22 +23,22 @@ services:
       - db
       - redis
     command: ["python", "main.py"]
-  gradio-interface:
-    build: .
-    container_name: repgen-gradio
-    ports:
-      - "7860:7860"
-    env_file:
-      - .env
-    volumes:
-      - ./secrets:/app/secrets:ro
-      - ./api:/app/api:ro
-      - ./common:/app/common:ro
-      - ./settings.py:/app/settings.py:ro
-    restart: unless-stopped
-    networks:
-      - defect-analysis-network
-    command: ["python", "gradio_interface.py"]
+  # gradio-interface:
+  #   build: .
+  #   container_name: repgen-gradio
+  #   ports:
+  #     - "7860:7860"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./secrets:/app/secrets:ro
+  #     - ./api:/app/api:ro
+  #     - ./common:/app/common:ro
+  #     - ./settings.py:/app/settings.py:ro
+  #   restart: unless-stopped
+  #   networks:
+  #     - defect-analysis-network
+  #   command: ["python", "gradio_interface.py"]
   db:
     image: postgres:15
     restart: always

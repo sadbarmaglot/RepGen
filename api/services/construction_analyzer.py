@@ -34,7 +34,7 @@ class ConstructionAnalyzer:
             gen_cfg = {
                 "temperature": 0.2,
                 "max_output_tokens": 4096,
-                "model_name": "gpt-4o",
+                "model_name": "gpt-5.1",
             }
             result = await self._analyze_with_model(
                 image_url=image_url,
@@ -46,6 +46,7 @@ class ConstructionAnalyzer:
             return ConstructionTypeResult(
                 image_name=image_name,
                 construction_type=result.get("construction_type", "Не определен"),
+                confidence=result.get("confidence", 0.0),
             )
             
         except Exception as e:

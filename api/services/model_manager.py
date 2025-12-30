@@ -104,6 +104,7 @@ class OpenAIProvider(BaseModelProvider):
                 "category": result.get("category", ""),
                 "construction_type": result.get("construction_type", ""),
                 "description": result.get("description", ""),
+                "confidence": result.get("confidence", 0.0),
                 "model_used": config.get("model_name", "gpt-4o-mini"),
             }
             

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -14,6 +14,7 @@ class Photo(Base):
     type = Column(String(100), nullable=True)
     description = Column(Text, nullable=True)
     order = Column(Integer, nullable=True)
+    type_confidence = Column(Numeric(3, 2), nullable=True, comment="Уверенность модели в определении типа конструкции (0.0-1.0)")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с отметкой

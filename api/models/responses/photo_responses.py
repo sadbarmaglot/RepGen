@@ -11,6 +11,7 @@ class PhotoResponse(BaseModel):
     type: Optional[str] = Field(None, description="Тип фотографии")
     description: Optional[str] = Field(None, description="Описание фотографии")
     order: Optional[int] = Field(None, description="Порядковый номер фотографии в отметке")
+    type_confidence: Optional[float] = Field(None, description="Уверенность модели в определении типа конструкции (0.0-1.0)", ge=0.0, le=1.0)
     created_at: datetime = Field(..., description="Дата создания фотографии")
     
     class Config:
