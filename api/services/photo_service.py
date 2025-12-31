@@ -153,6 +153,11 @@ class PhotoService:
         
         if photo_data.type is not None:
             photo.type = photo_data.type
+            # Если пользователь сам указал тип, но не указал confidence, устанавливаем 1.0
+            if photo_data.type_confidence is None:
+                photo.type_confidence = 1.0
+        if photo_data.type_confidence is not None:
+            photo.type_confidence = photo_data.type_confidence
         if photo_data.description is not None:
             photo.description = photo_data.description
         if photo_data.order is not None:
