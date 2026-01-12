@@ -912,18 +912,18 @@ def get_defects_text(construction_type: str = None) -> str:
     for defect in defects_list:
         defect_copy = defect.copy()
         
-        # Если у дефекта есть параметры, добавляем информацию о них
+        # Формируем базовую строку дефекта
+        base_line = f"description: {defect_copy['description']}; recommendation: {defect_copy['recommendation']}; category: {defect_copy['category']}; material: {defect_copy['material']}"
+        
+        # Если у дефекта есть параметры, добавляем информацию о них отдельно
         if "parameters" in defect:
             params_info = _format_parameters_info(defect["parameters"])
-            # Добавляем информацию о параметрах к описанию
-            base_desc = defect.get("description", defect.get("damage_type", ""))
-            defect_copy["description"] = f"{base_desc}. {params_info}"
+            if params_info:
+                base_line += f"; parameters: {params_info}"
             # Удаляем параметры из копии
             del defect_copy["parameters"]
         
-        result_lines.append(
-            f"description: {defect_copy['description']}; recommendation: {defect_copy['recommendation']}; category: {defect_copy['category']}; material: {defect_copy['material']}."
-        )
+        result_lines.append(base_line + ".")
     
     return "\n".join(result_lines)
 
@@ -931,6 +931,7 @@ def get_defects_text(construction_type: str = None) -> str:
 def _format_parameters_info(parameters: dict) -> str:
     """
     Форматирует информацию о параметрах в компактный текст для LLM.
+    Показывает только варианты параметров с категориями.
     """
     parts = []
     
@@ -944,13 +945,14 @@ def _format_parameters_info(parameters: dict) -> str:
         if not ranges:
             continue
         
-        # Формируем описание диапазонов
-        range_descriptions = []
+        # Формируем список вариантов: только диапазон и категория
+        variant_list = []
         for range_config in ranges:
             min_val = range_config.get("min")
             max_val = range_config.get("max")
             category = range_config.get("category", "")
             
+            # Формируем диапазон
             if min_val is not None and max_val is not None:
                 range_desc = f"{min_val}-{max_val} {unit}"
             elif max_val is not None:
@@ -960,13 +962,14 @@ def _format_parameters_info(parameters: dict) -> str:
             else:
                 continue
             
+            # Формируем вариант: диапазон и категория
             if category:
-                range_desc += f" (категория {category})"
-            
-            range_descriptions.append(range_desc)
+                variant_list.append(f"{range_desc} (категория {category})")
+            else:
+                variant_list.append(range_desc)
         
-        if range_descriptions:
-            param_desc = f"Варианты: {', '.join(range_descriptions)}"
+        if variant_list:
+            param_desc = "Варианты: " + ", ".join(variant_list)
             parts.append(param_desc)
     
     return " | ".join(parts) if parts else ""
@@ -988,13 +991,13 @@ def get_user_prompt(construction_type: str = None) -> str:
 3. Верни также рекомендацию из базы.
 4. Верни категорию из базы.
 
-ВАЖНО: Если в описании дефекта указаны варианты параметров (например, "Варианты: до 3 мм (категория В), 3-5 мм (категория Б)"), выбери тот вариант параметров, который наиболее точно соответствует тому, что видно на фото, и используй соответствующую категорию.
+ВАЖНО: Если в дефекте указаны параметры (поле "parameters"), выбери ОДИН вариант параметров, который наиболее точно соответствует тому, что видно на фото. В описании (description) обязательно укажи конкретное значение выбранного параметра (например, "шириной раскрытия 5 мм" или "на глубину 200 мм"). Используй базовое описание дефекта, адаптировав его под выбранный вариант параметров. Используй категорию из выбранного варианта. НЕ копируй все варианты в описание - верни только один вариант.
 
 Ответ строго в JSON:
 {{
-  "description": "описание из базы",
-  "recommendation": "соответствующее рекомендация из базы",
-  "category": "категория из базы"
+  "description": "описание дефекта с указанием конкретного значения выбранного параметра (например, 'Трещины... шириной раскрытия 5 мм')",
+  "recommendation": "рекомендация из базы (может отличаться в зависимости от выбранного варианта)",
+  "category": "категория из выбранного варианта параметров"
 }}
 """
 
