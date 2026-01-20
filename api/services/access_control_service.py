@@ -35,7 +35,7 @@ class AccessControlService:
                 )
             )
         )
-        return member_result.scalar_one_or_none() is not None
+        return member_result.scalars().first() is not None
 
     async def check_object_access(self, object_id: int, user_id: int) -> bool:
         """Проверка доступа к объекту (владелец проекта или участник объекта)"""
