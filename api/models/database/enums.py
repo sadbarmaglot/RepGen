@@ -45,3 +45,10 @@ class DefectType(enum.Enum):
     mechanical_deform = "mechanical_deform"
     non_project_holes = "non_project_holes"
     emergency_section = "emergency_section"
+
+
+class DefectCategory(enum.Enum):
+    """Категории дефектов (A, B, C)"""
+    A = "A"
+    B = "B"
+    C = "C"

@@ -5,5 +5,7 @@ from .object_member import ObjectMember
 from .plan import Plan
 from .mark import Mark
 from .photo import Photo
+from .photo_defect_analysis import PhotoDefectAnalysis
 
-__all__ = ["User", "Project", "Object", "ObjectMember", "Plan", "Mark", "Photo"]
+__all__ = ["User", "Project", "Object", "ObjectMember", "Plan", "Mark", "Photo", "PhotoDefectAnalysis"]
+

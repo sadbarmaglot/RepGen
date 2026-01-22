@@ -20,5 +20,10 @@ class Photo(Base):
     # Связь с отметкой
     mark = relationship("Mark", back_populates="photos", lazy="select")
     
+    # Связь с анализами дефектов
+    defect_analysis = relationship("PhotoDefectAnalysis", back_populates="photo", 
+                                   lazy="select", cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"<Photo(id={self.id}, mark_id={self.mark_id}, image_name='{self.image_name}', type='{self.type}', order={self.order})>"
+

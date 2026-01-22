@@ -1,15 +1,23 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services.defect_analyzer import DefectAnalyzer
 from api.services.model_manager import ModelManager
 from api.services.construction_analyzer import ConstructionAnalyzer
 from api.services.redis_service import redis_service
+from api.services.defect_analysis_service import DefectAnalysisService
+from api.services.database import get_db
 from api.models.entities import User
 from api.dependencies.auth_dependencies import get_current_user
 from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest
-from api.models.responses import ImageAnalysisResponse, ConstructionTypeResponse, DefectDescriptionResponse
+from api.models.responses import (
+    ImageAnalysisResponse,
+    ConstructionTypeResponse,
+    DefectDescriptionResponse,
+    PhotoDefectAnalysisListResponse
+)
 from common.gc_utils import create_signed_url
 
 logger = logging.getLogger(__name__)
@@ -24,13 +32,15 @@ construction_analyzer = ConstructionAnalyzer(model_manager)
 @router.post("/defect", response_model=ImageAnalysisResponse)
 async def analyze_image(
     request: ImageAnalysisRequest,
-    _: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Анализ изображения по имени файла
     
     Принимает имя изображения и возвращает анализ дефекта с использованием gpt-4o.
     Можно указать тип конструкции для фильтрации базы дефектов.
+    Если указан photo_id, результат будет сохранен в БД.
     """
     try:
         logger.info(f"Получен запрос на анализ изображения: {request.image_name}")
@@ -42,6 +52,21 @@ async def analyze_image(
             construction_type=request.construction_type
         )
         
+        # Если указан photo_id, сохраняем результат в БД
+        if request.photo_id is not None:
+            try:
+                service = DefectAnalysisService(db)
+                await service.create_analysis(
+                    photo_id=request.photo_id,
+                    defect_description=result["description"],
+                    recommendation=result["recommendation"],
+                    category=result["category"]
+                )
+                logger.info(f"Анализ сохранен в БД для фото {request.photo_id}")
+            except ValueError as e:
+                logger.warning(f"Не удалось сохранить анализ в БД: {e}")
+                # Не прерываем выполнение - возвращаем результат анализа
+        
         return ImageAnalysisResponse(
             description=result["description"],
             recommendation=result["recommendation"],
@@ -51,6 +76,83 @@ async def analyze_image(
     except Exception as e:
         logger.error(f"Ошибка при анализе изображения {request.image_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/defect/{photo_id}", response_model=PhotoDefectAnalysisListResponse)
+async def get_defect_analysis_by_photo(
+    photo_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Получение анализов дефектов для конкретной фотографии
+    """
+    try:
+        service = DefectAnalysisService(db)
+        return await service.get_by_photo(photo_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка при получении анализов для фото {photo_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/defect/by-mark/{mark_id}", response_model=PhotoDefectAnalysisListResponse)
+async def get_defect_analysis_by_mark(
+    mark_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Получение анализов дефектов для всех фотографий марки
+    """
+    try:
+        service = DefectAnalysisService(db)
+        return await service.get_by_mark(mark_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка при получении анализов для марки {mark_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/defect/by-plan/{plan_id}", response_model=PhotoDefectAnalysisListResponse)
+async def get_defect_analysis_by_plan(
+    plan_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Получение анализов дефектов для всех фотографий плана
+    """
+    try:
+        service = DefectAnalysisService(db)
+        return await service.get_by_plan(plan_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка при получении анализов для плана {plan_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/defect/by-object/{object_id}", response_model=PhotoDefectAnalysisListResponse)
+async def get_defect_analysis_by_object(
+    object_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Получение анализов дефектов для всех фотографий объекта
+    """
+    try:
+        service = DefectAnalysisService(db)
+        return await service.get_by_object(object_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка при получении анализов для объекта {object_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/construction_type", response_model=ConstructionTypeResponse)
 async def analyze_construction_type(

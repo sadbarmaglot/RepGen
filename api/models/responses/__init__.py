@@ -38,7 +38,10 @@ from .construction_responses import (
     DefectDescriptionResult
 )
 from .image_analysis_responses import (
-    ImageAnalysisResponse
+    ImageAnalysisResponse,
+    PhotoDefectAnalysisResponse,
+    PhotoDefectAnalysisListResponse,
+    CATEGORY_DISPLAY_MAP
 )
 from .focus_api_responses import (
     FocusImageProcessResponse,
@@ -78,6 +81,9 @@ __all__ = [
     "DefectDescriptionResult",
     # Image analysis responses
     "ImageAnalysisResponse",
+    "PhotoDefectAnalysisResponse",
+    "PhotoDefectAnalysisListResponse",
+    "CATEGORY_DISPLAY_MAP",
     # Focus API responses
     "FocusImageProcessResponse",
     "FileUrlInfo"
