@@ -17,11 +17,11 @@ class PhotoDefectAnalysis(Base):
         nullable=False,
         index=True
     )
-    defect_description = Column(Text, nullable=False)
-    recommendation = Column(Text, nullable=False)
+    defect_description = Column(Text, nullable=True)
+    recommendation = Column(Text, nullable=True)
     category = Column(
         Enum(DefectCategory, name="defect_category"),
-        nullable=False
+        nullable=True
     )
     confidence = Column(
         Numeric(3, 2),

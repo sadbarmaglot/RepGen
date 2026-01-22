@@ -94,22 +94,23 @@ class DefectAnalysisService:
         self,
         photo_id: int,
         user_id: int,
-        defect_description: str,
-        recommendation: str,
-        category: str
+        defect_description: Optional[str] = None,
+        recommendation: Optional[str] = None,
+        category: Optional[str] = None
     ) -> PhotoDefectAnalysis:
-        """Обновление анализа дефекта пользователем"""
+        """Обновление анализа дефекта пользователем (partial update)"""
         
         # Проверяем доступ к фото
         if not await self.access_control.check_photo_access(photo_id, user_id):
             raise ValueError("Фотография не найдена или нет доступа")
         
-        # Нормализуем категорию
-        normalized_category = CATEGORY_INPUT_MAP.get(category)
-        if normalized_category is None:
-            raise ValueError(f"Неверная категория дефекта: {category}. Допустимые значения: А, Б, В (или A, B, C)")
-        
-        category_enum = DefectCategory(normalized_category)
+        # Нормализуем категорию если передана
+        category_enum = None
+        if category is not None:
+            normalized_category = CATEGORY_INPUT_MAP.get(category)
+            if normalized_category is None:
+                raise ValueError(f"Неверная категория дефекта: {category}. Допустимые значения: А, Б, В (или A, B, C)")
+            category_enum = DefectCategory(normalized_category)
         
         # Ищем существующий анализ
         result = await self.db.execute(
@@ -119,16 +120,19 @@ class DefectAnalysisService:
         
         try:
             if existing_analysis:
-                # Обновляем существующий
-                existing_analysis.defect_description = defect_description
-                existing_analysis.recommendation = recommendation
-                existing_analysis.category = category_enum
+                # Обновляем только переданные поля
+                if defect_description is not None:
+                    existing_analysis.defect_description = defect_description
+                if recommendation is not None:
+                    existing_analysis.recommendation = recommendation
+                if category_enum is not None:
+                    existing_analysis.category = category_enum
                 existing_analysis.confidence = Decimal("1.0")  # Пользовательский ввод = 100% уверенность
                 await self.db.commit()
                 await self.db.refresh(existing_analysis)
                 return existing_analysis
             else:
-                # Создаем новый
+                # Создаем новый анализ с переданными полями
                 analysis = PhotoDefectAnalysis(
                     photo_id=photo_id,
                     defect_description=defect_description,

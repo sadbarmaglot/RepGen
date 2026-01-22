@@ -10,6 +10,6 @@ class ImageAnalysisRequest(BaseModel):
 
 class DefectAnalysisUpdateRequest(BaseModel):
     """Запрос на обновление анализа дефекта пользователем"""
-    defect_description: str = Field(..., description="Описание дефекта")
-    recommendation: str = Field(..., description="Рекомендация по устранению")
-    category: str = Field(..., description="Категория дефекта (А, Б, В)")
+    defect_description: Optional[str] = Field(None, description="Описание дефекта")
+    recommendation: Optional[str] = Field(None, description="Рекомендация по устранению")
+    category: Optional[str] = Field(None, description="Категория дефекта (А, Б, В)")
