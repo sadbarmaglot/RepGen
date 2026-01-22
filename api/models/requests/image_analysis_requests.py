@@ -7,3 +7,9 @@ class ImageAnalysisRequest(BaseModel):
     construction_type: Optional[str] = Field(None, description="Тип конструкции для фильтрации базы дефектов")
     photo_id: Optional[int] = Field(None, description="ID фотографии для сохранения результата в БД")
 
+
+class DefectAnalysisUpdateRequest(BaseModel):
+    """Запрос на обновление анализа дефекта пользователем"""
+    defect_description: str = Field(..., description="Описание дефекта")
+    recommendation: str = Field(..., description="Рекомендация по устранению")
+    category: str = Field(..., description="Категория дефекта (А, Б, В)")

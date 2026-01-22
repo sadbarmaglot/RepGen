@@ -37,7 +37,7 @@ class DefectAnalysisService:
         category: str,
         confidence: Optional[float] = None
     ) -> PhotoDefectAnalysis:
-        """Создание нового анализа дефекта"""
+        """Создание или обновление анализа дефекта"""
         
         normalized_category = CATEGORY_INPUT_MAP.get(category)
         if normalized_category is None:
@@ -57,22 +57,92 @@ class DefectAnalysisService:
         if not photo:
             raise ValueError(f"Фотография с ID {photo_id} не найдена")
         
-        analysis = PhotoDefectAnalysis(
-            photo_id=photo_id,
-            defect_description=defect_description,
-            recommendation=recommendation,
-            category=category_enum,
-            confidence=Decimal(str(confidence)) if confidence is not None else None
+        # Проверяем, есть ли уже анализ для этого фото
+        existing_result = await self.db.execute(
+            select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
         )
+        existing_analysis = existing_result.scalar_one_or_none()
         
         try:
-            self.db.add(analysis)
-            await self.db.commit()
-            await self.db.refresh(analysis)
-            return analysis
+            if existing_analysis:
+                # Обновляем существующий анализ
+                existing_analysis.defect_description = defect_description
+                existing_analysis.recommendation = recommendation
+                existing_analysis.category = category_enum
+                existing_analysis.confidence = Decimal(str(confidence)) if confidence is not None else None
+                await self.db.commit()
+                await self.db.refresh(existing_analysis)
+                return existing_analysis
+            else:
+                # Создаем новый анализ
+                analysis = PhotoDefectAnalysis(
+                    photo_id=photo_id,
+                    defect_description=defect_description,
+                    recommendation=recommendation,
+                    category=category_enum,
+                    confidence=Decimal(str(confidence)) if confidence is not None else None
+                )
+                self.db.add(analysis)
+                await self.db.commit()
+                await self.db.refresh(analysis)
+                return analysis
         except IntegrityError as e:
             await self.db.rollback()
-            raise ValueError(f"Ошибка при создании анализа: {str(e)}")
+            raise ValueError(f"Ошибка при сохранении анализа: {str(e)}")
+    
+    async def update_analysis(
+        self,
+        photo_id: int,
+        user_id: int,
+        defect_description: str,
+        recommendation: str,
+        category: str
+    ) -> PhotoDefectAnalysis:
+        """Обновление анализа дефекта пользователем"""
+        
+        # Проверяем доступ к фото
+        if not await self.access_control.check_photo_access(photo_id, user_id):
+            raise ValueError("Фотография не найдена или нет доступа")
+        
+        # Нормализуем категорию
+        normalized_category = CATEGORY_INPUT_MAP.get(category)
+        if normalized_category is None:
+            raise ValueError(f"Неверная категория дефекта: {category}. Допустимые значения: А, Б, В (или A, B, C)")
+        
+        category_enum = DefectCategory(normalized_category)
+        
+        # Ищем существующий анализ
+        result = await self.db.execute(
+            select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
+        )
+        existing_analysis = result.scalar_one_or_none()
+        
+        try:
+            if existing_analysis:
+                # Обновляем существующий
+                existing_analysis.defect_description = defect_description
+                existing_analysis.recommendation = recommendation
+                existing_analysis.category = category_enum
+                existing_analysis.confidence = Decimal("1.0")  # Пользовательский ввод = 100% уверенность
+                await self.db.commit()
+                await self.db.refresh(existing_analysis)
+                return existing_analysis
+            else:
+                # Создаем новый
+                analysis = PhotoDefectAnalysis(
+                    photo_id=photo_id,
+                    defect_description=defect_description,
+                    recommendation=recommendation,
+                    category=category_enum,
+                    confidence=Decimal("1.0")
+                )
+                self.db.add(analysis)
+                await self.db.commit()
+                await self.db.refresh(analysis)
+                return analysis
+        except IntegrityError as e:
+            await self.db.rollback()
+            raise ValueError(f"Ошибка при обновлении анализа: {str(e)}")
     
     async def get_by_photo(self, photo_id: int, user_id: int) -> PhotoDefectAnalysisListResponse:
         """Получение анализов для конкретной фотографии"""

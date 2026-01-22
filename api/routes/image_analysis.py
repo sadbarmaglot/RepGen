@@ -11,12 +11,14 @@ from api.services.defect_analysis_service import DefectAnalysisService
 from api.services.database import get_db
 from api.models.entities import User
 from api.dependencies.auth_dependencies import get_current_user
-from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest
+from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest, DefectAnalysisUpdateRequest
 from api.models.responses import (
     ImageAnalysisResponse,
     ConstructionTypeResponse,
     DefectDescriptionResponse,
-    PhotoDefectAnalysisListResponse
+    PhotoDefectAnalysisListResponse,
+    PhotoDefectAnalysisResponse,
+    CATEGORY_DISPLAY_MAP
 )
 from common.gc_utils import create_signed_url
 
@@ -94,6 +96,49 @@ async def get_defect_analysis_by_photo(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Ошибка при получении анализов для фото {photo_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/defect/{photo_id}", response_model=PhotoDefectAnalysisResponse)
+async def update_defect_analysis(
+    photo_id: int,
+    request: DefectAnalysisUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Обновление анализа дефекта пользователем
+    
+    Позволяет пользователю ввести свою версию анализа дефекта.
+    Если анализ для фото не существует, создается новый.
+    """
+    try:
+        service = DefectAnalysisService(db)
+        analysis = await service.update_analysis(
+            photo_id=photo_id,
+            user_id=current_user.id,
+            defect_description=request.defect_description,
+            recommendation=request.recommendation,
+            category=request.category
+        )
+        
+        # Маппим категорию для ответа
+        category_value = analysis.category.value if hasattr(analysis.category, 'value') else str(analysis.category)
+        display_category = CATEGORY_DISPLAY_MAP.get(category_value, category_value)
+        
+        return PhotoDefectAnalysisResponse(
+            id=analysis.id,
+            photo_id=analysis.photo_id,
+            defect_description=analysis.defect_description,
+            recommendation=analysis.recommendation,
+            category=display_category,
+            confidence=float(analysis.confidence) if analysis.confidence else None,
+            created_at=analysis.created_at
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении анализа для фото {photo_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

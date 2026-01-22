@@ -39,7 +39,8 @@ from .construction_requests import (
     ConstructionTypeRequest
 )
 from .image_analysis_requests import (
-    ImageAnalysisRequest
+    ImageAnalysisRequest,
+    DefectAnalysisUpdateRequest
 )
 from .focus_api_requests import (
     FocusImageProcessRequest
@@ -79,6 +80,7 @@ __all__ = [
     "ConstructionTypeRequest",
     # Image analysis requests
     "ImageAnalysisRequest",
+    "DefectAnalysisUpdateRequest",
     # Focus API requests
     "FocusImageProcessRequest"
 ]
