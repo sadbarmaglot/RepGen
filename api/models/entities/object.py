@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..database.base import Base
+from ..database.enums import ObjectStatus
 
 class Object(Base):
     """Модель объекта"""
@@ -13,6 +14,7 @@ class Object(Base):
     name = Column(Text, nullable=False)
     address = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
+    status = Column(Enum(ObjectStatus, name="object_status"), nullable=False, default=ObjectStatus.not_started)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с проектом

@@ -7,6 +7,7 @@ from api.models.entities import Project
 from api.models.requests import ObjectCreateRequest, ObjectUpdateRequest
 from api.models.responses import ObjectResponse, ObjectListResponse
 from api.services.access_control_service import AccessControlService
+from api.models.database.enums import ObjectStatus
 
 class ObjectService:
     def __init__(self, db: AsyncSession):
@@ -32,7 +33,8 @@ class ObjectService:
             project_id=object_data.project_id,
             name=object_data.name,
             address=object_data.address,
-            description=object_data.description
+            description=object_data.description,
+            status=object_data.status if object_data.status else ObjectStatus.not_started
         )
         
         try:
@@ -113,6 +115,8 @@ class ObjectService:
             object_.address = object_data.address
         if object_data.description is not None:
             object_.description = object_data.description
+        if object_data.status is not None:
+            object_.status = object_data.status
         
         try:
             await self.db.commit()

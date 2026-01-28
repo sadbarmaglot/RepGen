@@ -52,3 +52,10 @@ class DefectCategory(enum.Enum):
     A = "A"
     B = "B"
     C = "C"
+
+
+class ObjectStatus(enum.Enum):
+    """Статусы объекта"""
+    not_started = "not_started"  # не начат
+    in_progress = "in_progress"  # в работе
+    completed = "completed"      # выполнено

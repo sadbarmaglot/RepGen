@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
+from ..database.enums import ObjectStatus
 
 class ObjectCreateRequest(BaseModel):
     """Запрос на создание объекта"""
@@ -7,9 +8,11 @@ class ObjectCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=500, description="Название объекта")
     address: Optional[str] = Field(None, max_length=1000, description="Адрес объекта")
     description: Optional[str] = Field(None, max_length=2000, description="Описание объекта")
+    status: Optional[ObjectStatus] = Field(None, description="Статус объекта")
 
 class ObjectUpdateRequest(BaseModel):
     """Запрос на обновление объекта"""
     name: Optional[str] = Field(None, min_length=1, max_length=500, description="Новое название объекта")
     address: Optional[str] = Field(None, max_length=1000, description="Новый адрес объекта")
     description: Optional[str] = Field(None, max_length=2000, description="Новое описание объекта")
+    status: Optional[ObjectStatus] = Field(None, description="Статус объекта")
