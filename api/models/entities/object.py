@@ -25,6 +25,9 @@ class Object(Base):
     
     # Связь с участниками объекта
     members = relationship("ObjectMember", back_populates="object", lazy="select", cascade="all, delete-orphan")
-    
+
+    # Связь с данными износа
+    wear_items = relationship("ObjectWearItem", back_populates="object", lazy="select", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<Object(id={self.id}, name='{self.name}', project_id={self.project_id})>"

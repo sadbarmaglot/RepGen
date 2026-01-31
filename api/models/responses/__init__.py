@@ -47,6 +47,13 @@ from .focus_api_responses import (
     FocusImageProcessResponse,
     FileUrlInfo
 )
+from .wear_responses import (
+    WearElementResponse,
+    WearItemResponse,
+    WearCalculationResponse,
+    WearElementListResponse,
+    CONDITION_DISPLAY_MAP
+)
 
 __all__ = [
     # Auth responses
@@ -86,5 +93,11 @@ __all__ = [
     "CATEGORY_DISPLAY_MAP",
     # Focus API responses
     "FocusImageProcessResponse",
-    "FileUrlInfo"
+    "FileUrlInfo",
+    # Wear responses
+    "WearElementResponse",
+    "WearItemResponse",
+    "WearCalculationResponse",
+    "WearElementListResponse",
+    "CONDITION_DISPLAY_MAP"
 ]

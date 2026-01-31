@@ -45,6 +45,11 @@ from .image_analysis_requests import (
 from .focus_api_requests import (
     FocusImageProcessRequest
 )
+from .wear_requests import (
+    WearItemUpdateRequest,
+    WearBulkUpdateRequest,
+    WearItemPatchRequest
+)
 
 __all__ = [
     # Auth requests
@@ -82,5 +87,9 @@ __all__ = [
     "ImageAnalysisRequest",
     "DefectAnalysisUpdateRequest",
     # Focus API requests
-    "FocusImageProcessRequest"
+    "FocusImageProcessRequest",
+    # Wear requests
+    "WearItemUpdateRequest",
+    "WearBulkUpdateRequest",
+    "WearItemPatchRequest"
 ]
