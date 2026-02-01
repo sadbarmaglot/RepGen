@@ -54,6 +54,9 @@ from .wear_responses import (
     WearElementListResponse,
     CONDITION_DISPLAY_MAP
 )
+from .general_info_responses import (
+    GeneralInfoResponse
+)
 
 __all__ = [
     # Auth responses
@@ -99,5 +102,7 @@ __all__ = [
     "WearItemResponse",
     "WearCalculationResponse",
     "WearElementListResponse",
-    "CONDITION_DISPLAY_MAP"
+    "CONDITION_DISPLAY_MAP",
+    # General info responses
+    "GeneralInfoResponse"
 ]

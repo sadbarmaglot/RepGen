@@ -50,6 +50,9 @@ from .wear_requests import (
     WearBulkUpdateRequest,
     WearItemPatchRequest
 )
+from .general_info_requests import (
+    GeneralInfoUpdateRequest
+)
 
 __all__ = [
     # Auth requests
@@ -91,5 +94,7 @@ __all__ = [
     # Wear requests
     "WearItemUpdateRequest",
     "WearBulkUpdateRequest",
-    "WearItemPatchRequest"
+    "WearItemPatchRequest",
+    # General info requests
+    "GeneralInfoUpdateRequest"
 ]
