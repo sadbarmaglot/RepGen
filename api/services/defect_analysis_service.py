@@ -70,7 +70,9 @@ class DefectAnalysisService:
                 # Обновляем существующий анализ
                 if object_id is not None:
                     existing_analysis.object_id = object_id
-                existing_analysis.defect_code = defect_code
+                # Обновляем код только если передан непустой (AI вернул код из базы)
+                if defect_code:
+                    existing_analysis.defect_code = defect_code
                 existing_analysis.defect_description = defect_description
                 existing_analysis.recommendation = recommendation
                 existing_analysis.category = category_enum

@@ -151,8 +151,9 @@ class DefectAnalyzer:
                 construction_type=construction_type
             )
             
-            # Возвращаем description, recommendation и category
+            # Возвращаем code, description, recommendation и category
             return {
+                "code": analysis_result.get("code", ""),
                 "description": analysis_result.get("description", "Дефект не определен"),
                 "recommendation": analysis_result.get("recommendation", "Рекомендация не предоставлена"),
                 "category": analysis_result.get("category", "Не определена")
