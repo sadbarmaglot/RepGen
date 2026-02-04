@@ -1096,10 +1096,20 @@ def get_defects_text(construction_type: str = None) -> str:
         if "parameters" in defect:
             for param_name, param_config in defect["parameters"].items():
                 if param_config.get("type") == "range" and "ranges" in param_config:
+                    unit = param_config.get("unit", "")
                     for range_item in param_config["ranges"]:
                         variant_code = range_item.get("code", "")
                         if variant_code:
-                            line = f"code: {variant_code}; description: {range_item.get('description', '')}; recommendation: {range_item.get('recommendation', '')}; category: {range_item.get('category', '')}; material: {defect.get('material', '')}."
+                            range_str = ""
+                            r_min = range_item.get("min")
+                            r_max = range_item.get("max")
+                            if r_min is not None and r_max is not None:
+                                range_str = f" [{param_name}: {r_min}-{r_max} {unit}]"
+                            elif r_max is not None:
+                                range_str = f" [{param_name}: до {r_max} {unit}]"
+                            elif r_min is not None:
+                                range_str = f" [{param_name}: более {r_min} {unit}]"
+                            line = f"code: {variant_code};{range_str} description: {range_item.get('description', '')}; recommendation: {range_item.get('recommendation', '')}; category: {range_item.get('category', '')}; material: {defect.get('material', '')}."
                             result_lines.append(line)
         else:
             # Дефект без параметров
