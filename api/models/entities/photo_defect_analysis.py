@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, Enum, Numeric
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -17,6 +17,13 @@ class PhotoDefectAnalysis(Base):
         nullable=False,
         index=True
     )
+    object_id = Column(
+        Integer,
+        ForeignKey("objects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True
+    )
+    defect_code = Column(String(20), nullable=True, index=True)
     defect_description = Column(Text, nullable=True)
     recommendation = Column(Text, nullable=True)
     category = Column(

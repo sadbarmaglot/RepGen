@@ -135,7 +135,7 @@ class DefectAnalyzer:
             # Конфигурация для gpt-5.1 с дефолтными параметрами
             config = {
                 "model_name": "gpt-5.1",
-                "temperature": 0.2,
+                "temperature": 0,
                 "max_tokens": 1024
             }
             

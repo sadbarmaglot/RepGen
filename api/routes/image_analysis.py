@@ -53,7 +53,9 @@ async def analyze_image(
             image_name=request.image_name,
             construction_type=request.construction_type
         )
-        
+
+        defect_code = result.get("code", "")
+
         # Если указан photo_id, сохраняем результат в БД
         if request.photo_id is not None:
             try:
@@ -62,14 +64,17 @@ async def analyze_image(
                     photo_id=request.photo_id,
                     defect_description=result["description"],
                     recommendation=result["recommendation"],
-                    category=result["category"]
+                    category=result["category"],
+                    defect_code=defect_code,
+                    object_id=request.object_id
                 )
                 logger.info(f"Анализ сохранен в БД для фото {request.photo_id}")
             except ValueError as e:
                 logger.warning(f"Не удалось сохранить анализ в БД: {e}")
                 # Не прерываем выполнение - возвращаем результат анализа
-        
+
         return ImageAnalysisResponse(
+            code=defect_code,
             description=result["description"],
             recommendation=result["recommendation"],
             category=result["category"]
@@ -119,7 +124,9 @@ async def update_defect_analysis(
             user_id=current_user.id,
             defect_description=request.defect_description,
             recommendation=request.recommendation,
-            category=request.category
+            category=request.category,
+            defect_code=request.defect_code,
+            object_id=request.object_id
         )
         
         # Маппим категорию для ответа
@@ -129,6 +136,7 @@ async def update_defect_analysis(
         return PhotoDefectAnalysisResponse(
             id=analysis.id,
             photo_id=analysis.photo_id,
+            defect_code=analysis.defect_code,
             defect_description=analysis.defect_description,
             recommendation=analysis.recommendation,
             category=display_category,

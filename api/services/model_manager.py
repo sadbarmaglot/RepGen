@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any
 
-from common.defects_db import SYSTEM_PROMPT, USER_PROMPT, get_user_prompt
+from common.defects_db import SYSTEM_PROMPT, USER_PROMPT, get_user_prompt, get_defect_by_code
 from settings import PROJECT_ID, LOCATION
 
 # OpenAI
@@ -100,6 +100,7 @@ class OpenAIProvider(BaseModelProvider):
             logger.info(f"OpenAI API результат: {result}")
             return {
                 "image_url": image_url,
+                "code": result.get("code", ""),
                 "recommendation": result.get("recommendation", ""),
                 "category": result.get("category", ""),
                 "construction_type": result.get("construction_type", ""),
@@ -227,6 +228,7 @@ class GoogleGeminiProvider(BaseModelProvider):
                 logger.info(f"Gemini API результат: {result}")
                 return {
                     "image_url": image_url,
+                    "code": result.get("code", ""),
                     "description": result.get("description", ""),
                     "recommendation": result.get("recommendation", ""),
                     "category": result.get("category", ""),
@@ -313,30 +315,51 @@ class ModelManager:
         raise Exception("Нет доступных провайдеров моделей")
     
     async def analyze_image(
-        self, 
-        image_url: str, 
+        self,
+        image_url: str,
         mime_type: str,
         config: Dict[str, Any],
         construction_type: str = None
         ) -> Dict[str, Any]:
         """Анализ изображения с помощью выбранной модели"""
-        
+
         model_name = config.get("model_name")
-        
+
         provider = self.get_provider(model_name)
-        
+
         if construction_type is not None:
             user_prompt = get_user_prompt(construction_type)
         else:
             user_prompt = self.user_prompt
-        
-        return await provider.analyze_image(
-            image_url, 
-            mime_type, 
-            self.system_prompt, 
-            user_prompt, 
+
+        result = await provider.analyze_image(
+            image_url,
+            mime_type,
+            self.system_prompt,
+            user_prompt,
             config
         )
+
+        # Извлекаем код дефекта и получаем данные из базы
+        code = result.get("code")
+        if code:
+            defect_data = get_defect_by_code(code)
+            if defect_data:
+                logger.info(f"Найден дефект по коду {code}: {defect_data.get('description', '')[:50]}...")
+                return {
+                    "image_url": image_url,
+                    "code": code,
+                    "description": defect_data.get("description", ""),
+                    "recommendation": defect_data.get("recommendation", ""),
+                    "category": defect_data.get("category", ""),
+                    "construction_type": defect_data.get("construction_type", ""),
+                    "model_used": config.get("model_name", "unknown"),
+                }
+            else:
+                logger.warning(f"Код дефекта {code} не найден в базе")
+
+        # Fallback: возвращаем результат как есть (для обратной совместимости)
+        return result
     
     def cleanup_all(self):
         """Очистка ресурсов всех провайдеров"""

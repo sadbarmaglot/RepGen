@@ -35,37 +35,42 @@ class DefectAnalysisService:
         defect_description: str,
         recommendation: str,
         category: str,
-        confidence: Optional[float] = None
+        confidence: Optional[float] = None,
+        defect_code: Optional[str] = None,
+        object_id: Optional[int] = None
     ) -> PhotoDefectAnalysis:
         """Создание или обновление анализа дефекта"""
-        
+
         normalized_category = CATEGORY_INPUT_MAP.get(category)
         if normalized_category is None:
             raise ValueError(f"Неверная категория дефекта: {category}. Допустимые значения: А, Б, В (или A, B, C)")
-        
+
         try:
             category_enum = DefectCategory(normalized_category)
         except ValueError:
             raise ValueError(f"Неверная категория дефекта: {category}")
-        
+
         # Проверяем что фото существует
         result = await self.db.execute(
             select(Photo).where(Photo.id == photo_id)
         )
         photo = result.scalar_one_or_none()
-        
+
         if not photo:
             raise ValueError(f"Фотография с ID {photo_id} не найдена")
-        
+
         # Проверяем, есть ли уже анализ для этого фото
         existing_result = await self.db.execute(
             select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
         )
         existing_analysis = existing_result.scalar_one_or_none()
-        
+
         try:
             if existing_analysis:
                 # Обновляем существующий анализ
+                if object_id is not None:
+                    existing_analysis.object_id = object_id
+                existing_analysis.defect_code = defect_code
                 existing_analysis.defect_description = defect_description
                 existing_analysis.recommendation = recommendation
                 existing_analysis.category = category_enum
@@ -77,6 +82,8 @@ class DefectAnalysisService:
                 # Создаем новый анализ
                 analysis = PhotoDefectAnalysis(
                     photo_id=photo_id,
+                    object_id=object_id,
+                    defect_code=defect_code,
                     defect_description=defect_description,
                     recommendation=recommendation,
                     category=category_enum,
@@ -96,14 +103,16 @@ class DefectAnalysisService:
         user_id: int,
         defect_description: Optional[str] = None,
         recommendation: Optional[str] = None,
-        category: Optional[str] = None
+        category: Optional[str] = None,
+        defect_code: Optional[str] = None,
+        object_id: Optional[int] = None
     ) -> PhotoDefectAnalysis:
         """Обновление анализа дефекта пользователем (partial update)"""
-        
+
         # Проверяем доступ к фото
         if not await self.access_control.check_photo_access(photo_id, user_id):
             raise ValueError("Фотография не найдена или нет доступа")
-        
+
         # Нормализуем категорию если передана
         category_enum = None
         if category is not None:
@@ -111,22 +120,28 @@ class DefectAnalysisService:
             if normalized_category is None:
                 raise ValueError(f"Неверная категория дефекта: {category}. Допустимые значения: А, Б, В (или A, B, C)")
             category_enum = DefectCategory(normalized_category)
-        
+
         # Ищем существующий анализ
         result = await self.db.execute(
             select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
         )
         existing_analysis = result.scalar_one_or_none()
-        
+
         try:
             if existing_analysis:
                 # Обновляем только переданные поля
                 if defect_description is not None:
                     existing_analysis.defect_description = defect_description
+                    existing_analysis.defect_code = None  # Обнуляем код при ручном изменении описания
                 if recommendation is not None:
                     existing_analysis.recommendation = recommendation
+                    existing_analysis.defect_code = None  # Обнуляем код при ручном изменении рекомендации
                 if category_enum is not None:
                     existing_analysis.category = category_enum
+                if defect_code is not None:
+                    existing_analysis.defect_code = defect_code  # Явно переданный код имеет приоритет
+                if object_id is not None:
+                    existing_analysis.object_id = object_id
                 existing_analysis.confidence = Decimal("1.0")  # Пользовательский ввод = 100% уверенность
                 await self.db.commit()
                 await self.db.refresh(existing_analysis)
@@ -135,6 +150,8 @@ class DefectAnalysisService:
                 # Создаем новый анализ с переданными полями
                 analysis = PhotoDefectAnalysis(
                     photo_id=photo_id,
+                    object_id=object_id,
+                    defect_code=defect_code,
                     defect_description=defect_description,
                     recommendation=recommendation,
                     category=category_enum,
@@ -203,22 +220,19 @@ class DefectAnalysisService:
     
     async def get_by_object(self, object_id: int, user_id: int) -> PhotoDefectAnalysisListResponse:
         """Получение анализов для всех фотографий объекта"""
-        
+
         # Проверяем доступ к объекту
         if not await self.access_control.check_object_access(object_id, user_id):
             raise ValueError("Объект не найден или нет доступа")
-        
-        # Получаем все анализы через цепочку object -> plans -> marks -> photos -> analyses
+
+        # Прямой запрос по object_id
         result = await self.db.execute(
             select(PhotoDefectAnalysis)
-            .join(Photo, PhotoDefectAnalysis.photo_id == Photo.id)
-            .join(Mark, Photo.mark_id == Mark.id)
-            .join(Plan, Mark.plan_id == Plan.id)
-            .where(Plan.object_id == object_id)
+            .where(PhotoDefectAnalysis.object_id == object_id)
             .order_by(PhotoDefectAnalysis.created_at.desc())
         )
         analyses = result.scalars().all()
-        
+
         return self._to_list_response(analyses)
     
     def _to_response(self, analysis: PhotoDefectAnalysis) -> PhotoDefectAnalysisResponse:
@@ -226,10 +240,11 @@ class DefectAnalysisService:
         # Маппим категорию A→А, B→Б, C→В
         category_value = analysis.category.value if hasattr(analysis.category, 'value') else str(analysis.category)
         display_category = CATEGORY_DISPLAY_MAP.get(category_value, category_value)
-        
+
         return PhotoDefectAnalysisResponse(
             id=analysis.id,
             photo_id=analysis.photo_id,
+            defect_code=analysis.defect_code,
             defect_description=analysis.defect_description,
             recommendation=analysis.recommendation,
             category=display_category,

@@ -11,6 +11,7 @@ CATEGORY_DISPLAY_MAP = {
 
 class ImageAnalysisResponse(BaseModel):
     """Ответ с результатом анализа изображения"""
+    code: str = Field(..., description="Код дефекта из базы")
     description: str = Field(..., description="Описание выявленного дефекта")
     recommendation: str = Field(..., description="Рекомендация по устранению")
     category: str = Field(..., description="Категория дефекта")
@@ -20,6 +21,7 @@ class PhotoDefectAnalysisResponse(BaseModel):
     """Ответ с информацией об анализе дефекта по фотографии"""
     id: int = Field(..., description="ID анализа")
     photo_id: int = Field(..., description="ID фотографии")
+    defect_code: Optional[str] = Field(None, description="Код дефекта из базы")
     defect_description: str = Field(..., description="Описание дефекта")
     recommendation: str = Field(..., description="Рекомендация по устранению")
     category: str = Field(..., description="Категория дефекта (А, Б, В)")
