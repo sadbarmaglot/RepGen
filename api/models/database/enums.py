@@ -9,6 +9,7 @@ class RoleType(enum.Enum):
     """Типы ролей пользователей (группы)"""
     sr = "sr"
     npk = "npk"
+    apa = "apa"
     all = "all"
 
 class MarkType(enum.Enum):
