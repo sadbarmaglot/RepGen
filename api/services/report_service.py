@@ -15,7 +15,7 @@ from api.models.entities import Plan, Mark, Photo, PhotoDefectAnalysis
 from api.models.database.enums import MarkType
 from api.services.access_control_service import AccessControlService
 from api.services.redis_service import redis_service
-from common.gc_utils import upload_bytes_to_gcs, create_signed_url
+from common.gc_utils import upload_bytes_to_gcs, create_signed_url, download_file_from_gcs
 from docx_generator.generate_defects_statement_2_report import generate_defects_statement_2_report
 
 logger = logging.getLogger(__name__)
@@ -222,6 +222,16 @@ class ReportService:
                 if not group["photo_name"] and photo.image_name:
                     group["photo_name"] = photo.image_name
 
+        # Собираем уникальные image_name для скачивания
+        photo_names = {g["photo_name"] for g in groups.values() if g["photo_name"]}
+        photo_bytes_map: dict[str, bytes] = {}
+        for name in photo_names:
+            try:
+                data, _ = await download_file_from_gcs(name)
+                photo_bytes_map[name] = data
+            except Exception as e:
+                logger.warning(f"Не удалось скачать фото {name}: {e}")
+
         # Формируем строки для DOCX
         rows = []
         counter = 1
@@ -254,7 +264,7 @@ class ReportService:
                 "element_name": group["construction_type"],
                 "defect_volume": total_volume,
                 "defects_and_causes": group["description"],
-                "photo": group["photo_name"],
+                "photo_data": photo_bytes_map.get(group["photo_name"]),
                 "danger_category": category_display,
                 "work_recommendations": work_recommendations,
                 "recommended_work_types": work_types,
