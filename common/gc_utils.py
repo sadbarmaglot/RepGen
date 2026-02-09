@@ -412,6 +412,22 @@ async def save_comparison_results_to_gcs(
     
     return results_filename, blob.public_url
 
+async def upload_bytes_to_gcs(
+    data: bytes,
+    filename: str,
+    content_type: str = "application/octet-stream",
+) -> str:
+    """Загрузка байтов в GCS, возвращает blob_name"""
+    blob = bucket.blob(filename)
+    blob.content_type = content_type
+
+    def _upload():
+        blob.upload_from_string(data, content_type=content_type)
+
+    await asyncio.to_thread(_upload)
+    return filename
+
+
 async def list_comparison_results(prefix: str = "comparison_results", max_results: int = 50) -> List[Dict[str, Any]]:
     """
     Получает список файлов с результатами сравнения из GCP bucket

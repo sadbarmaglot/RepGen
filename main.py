@@ -35,6 +35,7 @@ from api.routes.image_analysis import router as image_analysis_router
 from api.routes.focus_api import router as focus_api_router
 from api.routes.wear import router as wear_router
 from api.routes.general_info import router as general_info_router
+from api.routes.reports import router as reports_router
 from api.middleware.logging_middleware import UserLoggingMiddleware
 
 # Настройка логирования
@@ -80,6 +81,7 @@ app.include_router(image_analysis_router)
 app.include_router(focus_api_router)
 app.include_router(wear_router)
 app.include_router(general_info_router)
+app.include_router(reports_router)
 
 handlers = BotHandlers(
     whitelist=load_whitelist(),
