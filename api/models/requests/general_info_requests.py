@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 from pydantic import BaseModel, Field
 
@@ -32,3 +32,6 @@ class GeneralInfoUpdateRequest(BaseModel):
 
     # Организация
     organization: Optional[str] = Field(None, max_length=255)
+
+    # Конструктивные решения
+    construction_solutions: Optional[List[dict]] = None

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Date, Numeric, DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -43,6 +44,9 @@ class ObjectGeneralInfo(Base):
 
     # Организация
     organization = Column(String(255), nullable=True)  # Организация
+
+    # Конструктивные решения (JSON-массив)
+    construction_solutions = Column(JSONB, nullable=True, default=[])
 
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

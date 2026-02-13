@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import date, datetime
 from pydantic import BaseModel
 
@@ -34,6 +34,9 @@ class GeneralInfoResponse(BaseModel):
 
     # Организация
     organization: Optional[str] = None
+
+    # Конструктивные решения
+    construction_solutions: Optional[List[dict]] = None
 
     updated_at: Optional[datetime] = None
 
