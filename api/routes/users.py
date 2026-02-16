@@ -8,7 +8,7 @@ from api.services.user_service import UserService
 from api.services.auth_service import AuthService
 from api.models.entities import User
 from api.models.responses import UserResponse
-from api.models.database.enums import GlobalRoleType
+from api.models.database.enums import GlobalRoleType, RoleType
 from api.dependencies.auth_dependencies import get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -27,16 +27,18 @@ async def get_all_users(
     """
     auth_service = AuthService(db)
     is_admin = auth_service.is_admin(current_user)
-    
+
     if is_admin:
         result = await db.execute(select(User).order_by(User.created_at.desc()))
+    elif current_user.role_type == RoleType.all:
+        return []
     else:
         result = await db.execute(
             select(User)
             .where(User.role_type == current_user.role_type)
             .order_by(User.created_at.desc())
         )
-    
+
     users = result.scalars().all()
     return [UserResponse.model_validate(user) for user in users]
 
