@@ -12,8 +12,8 @@ engine = create_async_engine(
     DATABASE_URL,
     pool_pre_ping=True,  # Проверяем соединения перед использованием
     pool_recycle=300,  # Пересоздаем соединения каждые 5 минут
-    pool_size=10,
-    max_overflow=10,
+    pool_size=20,
+    max_overflow=40,
     pool_timeout=60,  # Увеличиваем таймаут ожидания соединения
 )
 
