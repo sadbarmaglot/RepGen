@@ -7,18 +7,20 @@ from settings import REDIS_HOST, REDIS_PORT
 
 class RedisService:
     """Сервис для работы с Redis кэшем"""
-    
+
     def __init__(self):
-        """Инициализация Redis клиента"""
-        self.redis_client = redis.Redis(
+        """Инициализация Redis клиента с пулом соединений"""
+        pool = redis.ConnectionPool(
             host=REDIS_HOST,
             port=int(REDIS_PORT),
+            max_connections=20,
             decode_responses=True,
             socket_connect_timeout=5,
             socket_timeout=5,
             retry_on_timeout=True,
             health_check_interval=30
         )
+        self.redis_client = redis.Redis(connection_pool=pool)
     
     async def get(self, key: str) -> Optional[str]:
         """Получение значения по ключу"""
