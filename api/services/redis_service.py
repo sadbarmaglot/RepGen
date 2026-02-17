@@ -9,11 +9,12 @@ class RedisService:
     """Сервис для работы с Redis кэшем"""
 
     def __init__(self):
-        """Инициализация Redis клиента с пулом соединений"""
-        pool = redis.ConnectionPool(
+        """Инициализация Redis клиента с блокирующим пулом соединений"""
+        pool = redis.BlockingConnectionPool(
             host=REDIS_HOST,
             port=int(REDIS_PORT),
-            max_connections=20,
+            max_connections=50,
+            timeout=10,
             decode_responses=True,
             socket_connect_timeout=5,
             socket_timeout=5,
