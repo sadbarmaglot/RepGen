@@ -61,6 +61,7 @@ services:
   redis:
     image: redis:7
     restart: unless-stopped
+    command: redis-server --maxclients 10000
     ulimits:
       nofile:
         soft: 65536
