@@ -110,7 +110,10 @@ class ReportService:
         # Проверяем доступ к объекту
         if not await self.access_control.check_object_access(object_id, user_id):
             raise ValueError("Объект не найден или у вас нет прав доступа к нему")
+        return await self.generate_defects_report_internal(object_id)
 
+    async def generate_defects_report_internal(self, object_id: int) -> str:
+        """Генерация отчёта без проверки доступа (для web routes)"""
         # Проверяем кеш
         cache_key = f"report:defects:{object_id}"
         cached_url = await redis_service.get(cache_key)

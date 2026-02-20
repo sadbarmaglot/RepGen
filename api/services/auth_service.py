@@ -49,14 +49,15 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
         return encoded_jwt
     
-    def verify_token(self, token: str, token_type: str = "access") -> Optional[str]:
-        """Проверка JWT токена"""
+    def verify_token(self, token: str, token_type: str = "access") -> Optional[dict]:
+        """Проверка JWT токена. Возвращает {"email": ..., "scope": "internal"|"web"} или None"""
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
             if payload.get("type") != token_type:
                 return None
             email: str = payload.get("sub")
-            return email
+            scope: str = payload.get("scope", "internal")
+            return {"email": email, "scope": scope}
         except JWTError:
             return None
     
@@ -78,11 +79,11 @@ class AuthService:
     
     async def verify_refresh_token(self, refresh_token: str) -> Optional[User]:
         """Проверка refresh токена"""
-        email = self.verify_token(refresh_token, "refresh")
-        if not email:
+        token_data = self.verify_token(refresh_token, "refresh")
+        if not token_data:
             return None
-        
-        user = await self.get_user_by_email(email)
+
+        user = await self.get_user_by_email(token_data["email"])
         if not user or user.refresh_token != refresh_token:
             return None
         
@@ -151,8 +152,8 @@ class AuthService:
         user.last_login = datetime.now(timezone.utc)
         await self.db.commit()
         
-        access_token = self.create_access_token(data={"sub": user.email})
-        refresh_token = self.create_refresh_token(data={"sub": user.email})
+        access_token = self.create_access_token(data={"sub": user.email, "scope": "internal"})
+        refresh_token = self.create_refresh_token(data={"sub": user.email, "scope": "internal"})
         
         await self.save_refresh_token(user, refresh_token)
         
@@ -187,6 +188,15 @@ class AuthService:
     
     async def refresh_access_token(self, refresh_token: str) -> dict:
         """Обновление access токена с помощью refresh токена"""
+        token_data = self.verify_token(refresh_token, "refresh")
+        if not token_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный или истекший refresh токен",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        scope = token_data.get("scope", "internal")
         user = await self.verify_refresh_token(refresh_token)
         if not user:
             raise HTTPException(
@@ -194,9 +204,9 @@ class AuthService:
                 detail="Неверный или истекший refresh токен",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        access_token = self.create_access_token(data={"sub": user.email})
-        
+
+        access_token = self.create_access_token(data={"sub": user.email, "scope": scope})
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,

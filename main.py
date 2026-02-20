@@ -36,6 +36,9 @@ from api.routes.focus_api import router as focus_api_router
 from api.routes.wear import router as wear_router
 from api.routes.general_info import router as general_info_router
 from api.routes.reports import router as reports_router
+from api.routes.web_auth import router as web_auth_router
+from api.routes.web_data import router as web_data_router
+from api.routes.web_admin import router as web_admin_router
 from api.middleware.logging_middleware import UserLoggingMiddleware
 
 # Настройка логирования
@@ -82,6 +85,9 @@ app.include_router(focus_api_router)
 app.include_router(wear_router)
 app.include_router(general_info_router)
 app.include_router(reports_router)
+app.include_router(web_auth_router)
+app.include_router(web_data_router)
+app.include_router(web_admin_router)
 
 handlers = BotHandlers(
     whitelist=load_whitelist(),

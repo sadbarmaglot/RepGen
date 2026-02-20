@@ -53,6 +53,12 @@ from .wear_requests import (
 from .general_info_requests import (
     GeneralInfoUpdateRequest
 )
+from .web_requests import (
+    WebUserLogin,
+    WebClientCreate,
+    WebClientUpdate,
+    WebProjectAssign
+)
 
 __all__ = [
     # Auth requests
@@ -96,5 +102,10 @@ __all__ = [
     "WearBulkUpdateRequest",
     "WearItemPatchRequest",
     # General info requests
-    "GeneralInfoUpdateRequest"
+    "GeneralInfoUpdateRequest",
+    # Web requests
+    "WebUserLogin",
+    "WebClientCreate",
+    "WebClientUpdate",
+    "WebProjectAssign"
 ]

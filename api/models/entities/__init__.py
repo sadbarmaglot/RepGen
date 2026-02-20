@@ -9,9 +9,12 @@ from .photo_defect_analysis import PhotoDefectAnalysis
 from .wear_element import WearElement
 from .object_wear_item import ObjectWearItem
 from .object_general_info import ObjectGeneralInfo
+from .web_user import WebUser
+from .web_user_project_access import WebUserProjectAccess
 
 __all__ = [
     "User", "Project", "Object", "ObjectMember", "Plan", "Mark", "Photo",
-    "PhotoDefectAnalysis", "WearElement", "ObjectWearItem", "ObjectGeneralInfo"
+    "PhotoDefectAnalysis", "WearElement", "ObjectWearItem", "ObjectGeneralInfo",
+    "WebUser", "WebUserProjectAccess"
 ]
 

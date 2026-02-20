@@ -57,6 +57,14 @@ from .wear_responses import (
 from .general_info_responses import (
     GeneralInfoResponse
 )
+from .web_responses import (
+    WebUserResponse,
+    WebTokenResponse,
+    WebTokenRefreshResponse,
+    WebClientCreatedResponse,
+    WebClientListResponse,
+    WebProjectAccessResponse
+)
 
 __all__ = [
     # Auth responses
@@ -104,5 +112,12 @@ __all__ = [
     "WearElementListResponse",
     "CONDITION_DISPLAY_MAP",
     # General info responses
-    "GeneralInfoResponse"
+    "GeneralInfoResponse",
+    # Web responses
+    "WebUserResponse",
+    "WebTokenResponse",
+    "WebTokenRefreshResponse",
+    "WebClientCreatedResponse",
+    "WebClientListResponse",
+    "WebProjectAccessResponse"
 ]

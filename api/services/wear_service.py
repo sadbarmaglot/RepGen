@@ -93,7 +93,10 @@ class WearService:
         # Проверяем доступ
         if not await self.access_control.check_object_access(object_id, user_id):
             raise ValueError("Объект не найден или нет доступа")
+        return await self.get_object_wear_internal(object_id)
 
+    async def get_object_wear_internal(self, object_id: int) -> WearCalculationResponse:
+        """Получение расчёта износа без проверки доступа (для web routes)"""
         # Получаем все элементы справочника
         elements_result = await self.db.execute(
             select(WearElement)

@@ -92,3 +92,9 @@ class ObjectStatus(enum.Enum):
     not_started = "not_started"  # не начат
     in_progress = "in_progress"  # в работе
     completed = "completed"      # выполнено
+
+
+class WebUserRole(enum.Enum):
+    """Роли веб-пользователей"""
+    admin = "admin"
+    client = "client"
