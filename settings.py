@@ -32,7 +32,9 @@ FOCUS_API_URL = os.environ.get("FOCUS_API_URL")
 FOCUS_API_KEY = os.environ.get("FOCUS_API_KEY")
 FOCUS_API_SECRET = os.environ.get("FOCUS_API_SECRET")
 
-JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY environment variable is required")
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 дней
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = 60  # 60 дней

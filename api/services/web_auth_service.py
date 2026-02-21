@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -46,7 +47,7 @@ class WebAuthService:
             data={"sub": user.email, "scope": "web"}
         )
 
-        user.refresh_token = refresh_token
+        user.refresh_token = hashlib.sha256(refresh_token.encode()).hexdigest()
         user.refresh_token_expires = datetime.now(timezone.utc) + timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS)
         await self.db.commit()
 
@@ -71,10 +72,16 @@ class WebAuthService:
         )
         user = result.scalar_one_or_none()
 
-        if not user or user.refresh_token != refresh_token:
+        if not user or user.refresh_token != hashlib.sha256(refresh_token.encode()).hexdigest():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Неверный или истекший refresh токен",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Аккаунт деактивирован",
             )
 
         if user.refresh_token_expires:

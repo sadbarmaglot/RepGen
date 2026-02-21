@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
@@ -71,9 +72,13 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
     
+    @staticmethod
+    def _hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
     async def save_refresh_token(self, user: User, refresh_token: str):
         """Сохранение refresh токена в базе данных"""
-        user.refresh_token = refresh_token
+        user.refresh_token = self._hash_token(refresh_token)
         user.refresh_token_expires = datetime.now(timezone.utc) + timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS)
         await self.db.commit()
     
@@ -84,7 +89,7 @@ class AuthService:
             return None
 
         user = await self.get_user_by_email(token_data["email"])
-        if not user or user.refresh_token != refresh_token:
+        if not user or user.refresh_token != self._hash_token(refresh_token):
             return None
         
         if user.refresh_token_expires:
@@ -197,6 +202,12 @@ class AuthService:
             )
 
         scope = token_data.get("scope", "internal")
+        if scope != "internal":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный или истекший refresh токен",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         user = await self.verify_refresh_token(refresh_token)
         if not user:
             raise HTTPException(

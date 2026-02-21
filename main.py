@@ -1,4 +1,5 @@
 import logging
+import os
 import uvicorn
 
 from aiogram import Bot, Dispatcher, F
@@ -60,10 +61,13 @@ app = FastAPI(
 )
 
 # CORS middleware
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "").split(",")
+CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS or ["*"],
+    allow_credentials=bool(CORS_ORIGINS),
     allow_methods=["*"],
     allow_headers=["*"],
 )
