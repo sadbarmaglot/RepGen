@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services.database import get_db
@@ -7,6 +7,7 @@ from api.models.requests import UserCreate, UserLogin, TokenRefresh
 from api.models.responses import UserResponse, Token
 from api.dependencies.auth_dependencies import get_current_user
 from api.models.entities import User
+from api.dependencies.rate_limiter import check_login_rate_limit, record_failed_login, clear_failed_login
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -27,17 +28,25 @@ async def register_user(
 @router.post("/login", response_model=Token)
 async def login_user(
     login_data: UserLogin,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Вход пользователя в систему
-    
+
     Проверяет email и пароль, возвращает access токен и refresh токен для аутентификации.
     Access токен живет 24 часа, refresh токен - 30 дней.
     """
+    await check_login_rate_limit(request, login_data.email)
+
     auth_service = AuthService(db)
-    result = await auth_service.login_user(login_data)
-    
+    try:
+        result = await auth_service.login_user(login_data)
+    except Exception:
+        await record_failed_login(login_data.email)
+        raise
+
+    await clear_failed_login(login_data.email)
     return Token(
         access_token=result["access_token"],
         refresh_token=result["refresh_token"],

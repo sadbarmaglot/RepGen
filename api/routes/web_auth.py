@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services.database import get_db
@@ -7,6 +7,7 @@ from api.models.requests import WebUserLogin, TokenRefresh
 from api.models.responses import WebUserResponse, WebTokenResponse, WebTokenRefreshResponse
 from api.models.entities import WebUser
 from api.dependencies.auth_dependencies import get_current_web_user
+from api.dependencies.rate_limiter import check_login_rate_limit, record_failed_login, clear_failed_login
 
 router = APIRouter(prefix="/web/auth", tags=["web-auth"])
 
@@ -14,10 +15,19 @@ router = APIRouter(prefix="/web/auth", tags=["web-auth"])
 @router.post("/login", response_model=WebTokenResponse)
 async def web_login(
     data: WebUserLogin,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    await check_login_rate_limit(request, data.email)
+
     service = WebAuthService(db)
-    result = await service.login(data.email, data.password)
+    try:
+        result = await service.login(data.email, data.password)
+    except Exception:
+        await record_failed_login(data.email)
+        raise
+
+    await clear_failed_login(data.email)
     return WebTokenResponse(
         access_token=result["access_token"],
         refresh_token=result["refresh_token"],
