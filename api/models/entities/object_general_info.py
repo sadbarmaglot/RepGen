@@ -48,6 +48,9 @@ class ObjectGeneralInfo(Base):
     # Конструктивные решения (JSON-массив)
     construction_solutions = Column(JSONB, nullable=True, default=[])
 
+    # Упрощенное заключение (для нежилых зданий)
+    simplified_conclusion = Column(JSONB, nullable=True, default={})
+
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Связь с объектом

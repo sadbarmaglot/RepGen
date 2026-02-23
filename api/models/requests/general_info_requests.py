@@ -35,3 +35,6 @@ class GeneralInfoUpdateRequest(BaseModel):
 
     # Конструктивные решения
     construction_solutions: Optional[List[dict]] = None
+
+    # Упрощенное заключение (для нежилых зданий)
+    simplified_conclusion: Optional[dict] = None
