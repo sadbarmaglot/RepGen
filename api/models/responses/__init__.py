@@ -41,6 +41,7 @@ from .image_analysis_responses import (
     ImageAnalysisResponse,
     PhotoDefectAnalysisResponse,
     PhotoDefectAnalysisListResponse,
+    QueueGroupAnalysisResponse,
     CATEGORY_DISPLAY_MAP
 )
 from .focus_api_responses import (
@@ -101,6 +102,7 @@ __all__ = [
     "ImageAnalysisResponse",
     "PhotoDefectAnalysisResponse",
     "PhotoDefectAnalysisListResponse",
+    "QueueGroupAnalysisResponse",
     "CATEGORY_DISPLAY_MAP",
     # Focus API responses
     "FocusImageProcessResponse",

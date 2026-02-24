@@ -16,3 +16,11 @@ class DefectAnalysisUpdateRequest(BaseModel):
     category: Optional[str] = Field(None, description="Категория дефекта (А, Б, В)")
     defect_code: Optional[str] = Field(None, description="Код дефекта из базы")
     object_id: Optional[int] = Field(None, description="ID объекта")
+
+
+class QueueGroupAnalysisRequest(BaseModel):
+    """Запрос на постановку группового анализа дефектов в очередь"""
+    image_name: str = Field(..., description="Имя репрезентативного изображения для AI-анализа")
+    construction_type: Optional[str] = Field(None, description="Тип конструкции для фильтрации базы дефектов")
+    photo_ids: list[int] = Field(..., description="ID всех фотографий группы (включая репрезентативное)")
+    object_id: Optional[int] = Field(None, description="ID объекта для денормализации")

@@ -11,13 +11,14 @@ from api.services.defect_analysis_service import DefectAnalysisService
 from api.services.database import get_db
 from api.models.entities import User
 from api.dependencies.auth_dependencies import get_current_user
-from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest, DefectAnalysisUpdateRequest
+from api.models.requests import ImageAnalysisRequest, ConstructionTypeRequest, DefectAnalysisUpdateRequest, QueueGroupAnalysisRequest
 from api.models.responses import (
     ImageAnalysisResponse,
     ConstructionTypeResponse,
     DefectDescriptionResponse,
     PhotoDefectAnalysisListResponse,
     PhotoDefectAnalysisResponse,
+    QueueGroupAnalysisResponse,
     CATEGORY_DISPLAY_MAP
 )
 from common.gc_utils import create_signed_url
@@ -82,6 +83,53 @@ async def analyze_image(
         
     except Exception as e:
         logger.error(f"Ошибка при анализе изображения {request.image_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/defect/queue-group", response_model=QueueGroupAnalysisResponse)
+async def queue_group_defect_analysis(
+    request: QueueGroupAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Постановка группового анализа дефектов в очередь (fire-and-forget).
+
+    AI анализирует одно репрезентативное изображение, результат
+    сохраняется для всех photo_ids группы. Ответ возвращается сразу,
+    анализ выполняется в фоне.
+    """
+    try:
+        from api.services.defect_analysis_queue_service import get_defect_analysis_queue_service
+
+        service = get_defect_analysis_queue_service()
+        queued = await service.queue_group_analysis(
+            image_name=request.image_name,
+            construction_type=request.construction_type,
+            photo_ids=request.photo_ids,
+            object_id=request.object_id
+        )
+
+        if not queued:
+            raise HTTPException(
+                status_code=503,
+                detail="Очередь анализа дефектов переполнена. Попробуйте позже."
+            )
+
+        logger.info(
+            f"Групповой анализ поставлен в очередь: "
+            f"image={request.image_name}, photo_count={len(request.photo_ids)}"
+        )
+
+        return QueueGroupAnalysisResponse(
+            queued=True,
+            photo_count=len(request.photo_ids),
+            message=f"Анализ {len(request.photo_ids)} фото поставлен в очередь"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при постановке группового анализа в очередь: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

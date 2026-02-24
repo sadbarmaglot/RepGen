@@ -36,3 +36,10 @@ class PhotoDefectAnalysisListResponse(BaseModel):
     """Ответ со списком анализов дефектов"""
     analyses: list[PhotoDefectAnalysisResponse] = Field(..., description="Список анализов")
     total: int = Field(..., description="Общее количество анализов")
+
+
+class QueueGroupAnalysisResponse(BaseModel):
+    """Ответ на постановку группового анализа в очередь"""
+    queued: bool = Field(..., description="Была ли задача поставлена в очередь")
+    photo_count: int = Field(..., description="Количество фотографий в группе")
+    message: str = Field(default="", description="Дополнительное сообщение")

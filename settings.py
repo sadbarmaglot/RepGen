@@ -51,6 +51,10 @@ MODEL_NAME = "gpt-4o-mini"
 CONSTRUCTION_QUEUE_MAX_CONCURRENT = 5
 CONSTRUCTION_QUEUE_MAX_SIZE = 500
 
+# Defect analysis queue settings
+DEFECT_QUEUE_MAX_CONCURRENT = 3
+DEFECT_QUEUE_MAX_SIZE = 200
+
 class DefectStates(StatesGroup):
     uploading = State()
     
