@@ -113,8 +113,13 @@ class DefectAnalysisQueueService:
 
                     description = result.get("description", "Дефект не определен")
                     recommendation = result.get("recommendation", "Рекомендация не предоставлена")
-                    category = result.get("category", "Не определена")
+                    category = result.get("category", "") or ""
                     defect_code = result.get("code", "")
+
+                    # Нормализация категории: AI может вернуть пустую или невалидную
+                    valid_categories = {"А", "Б", "В", "A", "B", "C"}
+                    if category not in valid_categories:
+                        category = "В"  # Дефолт — наименее опасная категория
 
                     logger.info(
                         f"AI анализ завершён для группы: code={defect_code}, "
