@@ -198,6 +198,26 @@ async def update_defect_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/defect/{photo_id}")
+async def delete_defect_analysis(
+    photo_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Удаление анализа дефекта для фотографии
+    """
+    try:
+        service = DefectAnalysisService(db)
+        await service.delete_analysis(photo_id, current_user.id)
+        return {"success": True, "message": f"Анализ для фото {photo_id} удалён"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Ошибка при удалении анализа для фото {photo_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/defect/by-mark/{mark_id}", response_model=PhotoDefectAnalysisListResponse)
 async def get_defect_analysis_by_mark(
     mark_id: int,

@@ -237,6 +237,25 @@ class DefectAnalysisService:
 
         return self._to_list_response(analyses)
     
+    async def delete_analysis(self, photo_id: int, user_id: int) -> bool:
+        """Удаление анализа дефекта для фотографии"""
+
+        # Проверяем доступ к фото
+        if not await self.access_control.check_photo_access(photo_id, user_id):
+            raise ValueError("Фотография не найдена или нет доступа")
+
+        result = await self.db.execute(
+            select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
+        )
+        analysis = result.scalar_one_or_none()
+
+        if not analysis:
+            raise ValueError(f"Анализ для фото {photo_id} не найден")
+
+        await self.db.delete(analysis)
+        await self.db.commit()
+        return True
+
     def _to_response(self, analysis: PhotoDefectAnalysis) -> PhotoDefectAnalysisResponse:
         """Преобразование модели в ответ с маппингом категории"""
         # Маппим категорию A→А, B→Б, C→В
