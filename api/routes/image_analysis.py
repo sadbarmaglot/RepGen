@@ -178,15 +178,15 @@ async def update_defect_analysis(
         )
         
         # Маппим категорию для ответа
-        category_value = analysis.category.value if hasattr(analysis.category, 'value') else str(analysis.category)
+        category_value = analysis.category.value if analysis.category and hasattr(analysis.category, 'value') else (str(analysis.category) if analysis.category else 'B')
         display_category = CATEGORY_DISPLAY_MAP.get(category_value, category_value)
-        
+
         return PhotoDefectAnalysisResponse(
             id=analysis.id,
             photo_id=analysis.photo_id,
             defect_code=analysis.defect_code,
-            defect_description=analysis.defect_description,
-            recommendation=analysis.recommendation,
+            defect_description=analysis.defect_description or '',
+            recommendation=analysis.recommendation or '',
             category=display_category,
             confidence=float(analysis.confidence) if analysis.confidence else None,
             created_at=analysis.created_at

@@ -220,11 +220,11 @@ async def web_get_defect_analyses(
 
     responses = []
     for a in analyses:
-        cat_value = a.category.value if hasattr(a.category, 'value') else str(a.category)
+        cat_value = a.category.value if a.category and hasattr(a.category, 'value') else (str(a.category) if a.category else 'B')
         display_cat = CATEGORY_DISPLAY_MAP.get(cat_value, cat_value)
         responses.append(PhotoDefectAnalysisResponse(
             id=a.id, photo_id=a.photo_id, defect_code=a.defect_code,
-            defect_description=a.defect_description, recommendation=a.recommendation,
+            defect_description=a.defect_description or '', recommendation=a.recommendation or '',
             category=display_cat,
             confidence=float(a.confidence) if a.confidence is not None else None,
             created_at=a.created_at,

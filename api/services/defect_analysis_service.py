@@ -150,13 +150,14 @@ class DefectAnalysisService:
                 return existing_analysis
             else:
                 # Создаем новый анализ с переданными полями
+                # При partial update недостающие поля дефолтим в пустые строки
                 analysis = PhotoDefectAnalysis(
                     photo_id=photo_id,
                     object_id=object_id,
                     defect_code=defect_code,
-                    defect_description=defect_description,
-                    recommendation=recommendation,
-                    category=category_enum,
+                    defect_description=defect_description or '',
+                    recommendation=recommendation or '',
+                    category=category_enum or DefectCategory.B,
                     confidence=Decimal("1.0")
                 )
                 self.db.add(analysis)
@@ -259,15 +260,15 @@ class DefectAnalysisService:
     def _to_response(self, analysis: PhotoDefectAnalysis) -> PhotoDefectAnalysisResponse:
         """Преобразование модели в ответ с маппингом категории"""
         # Маппим категорию A→А, B→Б, C→В
-        category_value = analysis.category.value if hasattr(analysis.category, 'value') else str(analysis.category)
+        category_value = analysis.category.value if analysis.category and hasattr(analysis.category, 'value') else (str(analysis.category) if analysis.category else 'B')
         display_category = CATEGORY_DISPLAY_MAP.get(category_value, category_value)
 
         return PhotoDefectAnalysisResponse(
             id=analysis.id,
             photo_id=analysis.photo_id,
             defect_code=analysis.defect_code,
-            defect_description=analysis.defect_description,
-            recommendation=analysis.recommendation,
+            defect_description=analysis.defect_description or '',
+            recommendation=analysis.recommendation or '',
             category=display_category,
             confidence=float(analysis.confidence) if analysis.confidence is not None else None,
             created_at=analysis.created_at
