@@ -106,5 +106,6 @@ class GeneralInfoService:
             replanning=info.replanning,
             organization=info.organization,
             construction_solutions=info.construction_solutions,
+            simplified_conclusion=info.simplified_conclusion,
             updated_at=info.updated_at
         )
