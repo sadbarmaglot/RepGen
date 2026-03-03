@@ -61,7 +61,10 @@ class DefectAnalysisService:
 
         # Проверяем, есть ли уже анализ для этого фото
         existing_result = await self.db.execute(
-            select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
+            select(PhotoDefectAnalysis)
+            .where(PhotoDefectAnalysis.photo_id == photo_id)
+            .order_by(PhotoDefectAnalysis.created_at.desc())
+            .limit(1)
         )
         existing_analysis = existing_result.scalar_one_or_none()
 
@@ -123,9 +126,12 @@ class DefectAnalysisService:
                 raise ValueError(f"Неверная категория дефекта: {category}. Допустимые значения: А, Б, В (или A, B, C)")
             category_enum = DefectCategory(normalized_category)
 
-        # Ищем существующий анализ
+        # Ищем существующий анализ (first() вместо scalar_one_or_none() на случай дубликатов)
         result = await self.db.execute(
-            select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
+            select(PhotoDefectAnalysis)
+            .where(PhotoDefectAnalysis.photo_id == photo_id)
+            .order_by(PhotoDefectAnalysis.created_at.desc())
+            .limit(1)
         )
         existing_analysis = result.scalar_one_or_none()
 
@@ -246,14 +252,18 @@ class DefectAnalysisService:
             raise ValueError("Фотография не найдена или нет доступа")
 
         result = await self.db.execute(
-            select(PhotoDefectAnalysis).where(PhotoDefectAnalysis.photo_id == photo_id)
+            select(PhotoDefectAnalysis)
+            .where(PhotoDefectAnalysis.photo_id == photo_id)
+            .order_by(PhotoDefectAnalysis.created_at.desc())
         )
-        analysis = result.scalar_one_or_none()
+        analyses = result.scalars().all()
 
-        if not analysis:
+        if not analyses:
             raise ValueError(f"Анализ для фото {photo_id} не найден")
 
-        await self.db.delete(analysis)
+        # Удаляем все записи (включая дубликаты)
+        for analysis in analyses:
+            await self.db.delete(analysis)
         await self.db.commit()
         return True
 
