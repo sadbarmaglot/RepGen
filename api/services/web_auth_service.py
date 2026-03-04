@@ -242,8 +242,12 @@ class WebAuthService:
         await self.db.commit()
 
     async def get_user_projects(self, web_user: WebUser) -> list[Project]:
+        eager = [
+            selectinload(Project.owner),
+            selectinload(Project.web_user_access).selectinload(WebUserProjectAccess.web_user),
+        ]
         if web_user.role == "admin":
-            query = select(Project).options(selectinload(Project.owner))
+            query = select(Project).options(*eager)
             if web_user.visible_group:
                 query = query.join(User, User.id == Project.owner_id).where(
                     User.role_type == web_user.visible_group
@@ -253,7 +257,7 @@ class WebAuthService:
 
         result = await self.db.execute(
             select(Project)
-            .options(selectinload(Project.owner))
+            .options(*eager)
             .join(WebUserProjectAccess, WebUserProjectAccess.project_id == Project.id)
             .where(WebUserProjectAccess.web_user_id == web_user.id)
             .order_by(Project.id)

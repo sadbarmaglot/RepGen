@@ -19,6 +19,9 @@ class Project(Base):
     
     # Связь с объектами
     objects = relationship("Object", back_populates="project", lazy="select", cascade="all, delete-orphan")
+
+    # Связь с веб-клиентами
+    web_user_access = relationship("WebUserProjectAccess", back_populates="project", lazy="select")
     
     def __repr__(self):
         return f"<Project(id={self.id}, name='{self.name}', owner_id={self.owner_id})>"

@@ -18,7 +18,7 @@ class WebUserProjectAccess(Base):
     )
 
     web_user = relationship("WebUser", back_populates="project_access", lazy="select")
-    project = relationship("Project", lazy="select")
+    project = relationship("Project", back_populates="web_user_access", lazy="select")
 
     def __repr__(self):
         return f"<WebUserProjectAccess(web_user_id={self.web_user_id}, project_id={self.project_id})>"
