@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from api.models.entities import WebUser, WebUserProjectAccess, Project, User
 from api.services.auth_service import AuthService, pwd_context
@@ -242,7 +243,7 @@ class WebAuthService:
 
     async def get_user_projects(self, web_user: WebUser) -> list[Project]:
         if web_user.role == "admin":
-            query = select(Project)
+            query = select(Project).options(selectinload(Project.owner))
             if web_user.visible_group:
                 query = query.join(User, User.id == Project.owner_id).where(
                     User.role_type == web_user.visible_group
@@ -252,6 +253,7 @@ class WebAuthService:
 
         result = await self.db.execute(
             select(Project)
+            .options(selectinload(Project.owner))
             .join(WebUserProjectAccess, WebUserProjectAccess.project_id == Project.id)
             .where(WebUserProjectAccess.web_user_id == web_user.id)
             .order_by(Project.id)

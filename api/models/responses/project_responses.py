@@ -6,10 +6,22 @@ class ProjectResponse(BaseModel):
     """Ответ с информацией о проекте"""
     id: int = Field(..., description="ID проекта")
     owner_id: int = Field(..., description="ID владельца проекта")
+    owner_name: Optional[str] = Field(None, description="Имя владельца проекта")
     name: str = Field(..., description="Название проекта")
     description: Optional[str] = Field(None, description="Описание проекта")
     created_at: datetime = Field(..., description="Дата создания проекта")
-    
+
+    @classmethod
+    def from_project(cls, project) -> "ProjectResponse":
+        return cls(
+            id=project.id,
+            owner_id=project.owner_id,
+            owner_name=project.owner.name if project.owner else None,
+            name=project.name,
+            description=project.description,
+            created_at=project.created_at,
+        )
+
     class Config:
         from_attributes = True
 

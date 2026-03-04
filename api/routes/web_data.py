@@ -60,7 +60,7 @@ async def web_get_projects(
     service = WebAuthService(db)
     projects = await service.get_user_projects(web_user)
     return ProjectListResponse(
-        projects=[ProjectResponse.model_validate(p) for p in projects],
+        projects=[ProjectResponse.from_project(p) for p in projects],
         total=len(projects),
     )
 
