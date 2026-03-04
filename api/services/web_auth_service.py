@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models.entities import WebUser, WebUserProjectAccess, Project
+from api.models.entities import WebUser, WebUserProjectAccess, Project, User
 from api.services.auth_service import AuthService, pwd_context
 from settings import JWT_ACCESS_TOKEN_EXPIRE_MINUTES, JWT_REFRESH_TOKEN_EXPIRE_DAYS
 
@@ -242,7 +242,12 @@ class WebAuthService:
 
     async def get_user_projects(self, web_user: WebUser) -> list[Project]:
         if web_user.role == "admin":
-            result = await self.db.execute(select(Project).order_by(Project.id))
+            query = select(Project)
+            if web_user.visible_group:
+                query = query.join(User, User.id == Project.owner_id).where(
+                    User.role_type == web_user.visible_group
+                )
+            result = await self.db.execute(query.order_by(Project.id))
             return list(result.scalars().all())
 
         result = await self.db.execute(
@@ -255,6 +260,13 @@ class WebAuthService:
 
     async def check_project_access(self, web_user: WebUser, project_id: int) -> bool:
         if web_user.role == "admin":
+            if web_user.visible_group:
+                result = await self.db.execute(
+                    select(Project)
+                    .join(User, User.id == Project.owner_id)
+                    .where(Project.id == project_id, User.role_type == web_user.visible_group)
+                )
+                return result.scalar_one_or_none() is not None
             return True
 
         result = await self.db.execute(

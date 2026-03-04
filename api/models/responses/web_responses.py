@@ -9,6 +9,7 @@ class WebUserResponse(BaseModel):
     name: Optional[str] = None
     company: Optional[str] = None
     role: str
+    visible_group: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
