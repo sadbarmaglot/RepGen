@@ -11,6 +11,7 @@ class WebClientCreate(BaseModel):
     email: EmailStr
     name: Optional[str] = None
     company: Optional[str] = None
+    view_mode: Optional[str] = "simplified"
 
 
 class WebClientUpdate(BaseModel):
@@ -18,6 +19,7 @@ class WebClientUpdate(BaseModel):
     company: Optional[str] = None
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
+    view_mode: Optional[str] = None
 
 
 class WebProjectAssign(BaseModel):

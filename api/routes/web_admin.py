@@ -34,7 +34,7 @@ async def create_client(
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    user, raw_password = await service.create_client(data.email, data.name, data.company)
+    user, raw_password = await service.create_client(data.email, data.name, data.company, data.view_mode)
     return WebClientCreatedResponse(
         user=WebUserResponse.model_validate(user),
         generated_password=raw_password,

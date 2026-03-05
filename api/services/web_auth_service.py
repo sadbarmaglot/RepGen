@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.models.entities import WebUser, WebUserProjectAccess, Project, User
+from api.models.database.enums import ViewMode
 from api.services.auth_service import AuthService, pwd_context
 from settings import JWT_ACCESS_TOKEN_EXPIRE_MINUTES, JWT_REFRESH_TOKEN_EXPIRE_DAYS
 
@@ -118,7 +119,7 @@ class WebAuthService:
         alphabet = string.ascii_letters + string.digits
         return "".join(secrets.choice(alphabet) for _ in range(length))
 
-    async def create_client(self, email: str, name: Optional[str] = None, company: Optional[str] = None) -> tuple[WebUser, str]:
+    async def create_client(self, email: str, name: Optional[str] = None, company: Optional[str] = None, view_mode: Optional[str] = None) -> tuple[WebUser, str]:
         existing = await self.db.execute(
             select(WebUser).where(WebUser.email == email)
         )
@@ -135,6 +136,7 @@ class WebAuthService:
             name=name,
             company=company,
             role="client",
+            view_mode=ViewMode(view_mode) if view_mode else ViewMode.simplified,
         )
         self.db.add(user)
         await self.db.commit()
@@ -152,6 +154,9 @@ class WebAuthService:
         for field in ("name", "company", "email", "is_active"):
             if field in data and data[field] is not None:
                 setattr(user, field, data[field])
+
+        if "view_mode" in data and data["view_mode"] is not None:
+            user.view_mode = ViewMode(data["view_mode"])
 
         await self.db.commit()
         await self.db.refresh(user)

@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..database.base import Base
-from ..database.enums import RoleType
+from ..database.enums import RoleType, ViewMode
 
 
 class WebUser(Base):
@@ -16,6 +16,7 @@ class WebUser(Base):
     company = Column(String(255), nullable=True)
     role = Column(String(20), nullable=False, default="client")
     visible_group = Column(Enum(RoleType, name="role_type_enum"), nullable=True)
+    view_mode = Column(Enum(ViewMode, name="view_mode_enum"), nullable=False, server_default="simplified")
     is_active = Column(Boolean, nullable=False, default=True)
     refresh_token = Column(Text, nullable=True)
     refresh_token_expires = Column(DateTime(timezone=True), nullable=True)

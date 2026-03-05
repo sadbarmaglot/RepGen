@@ -94,6 +94,12 @@ class ObjectStatus(enum.Enum):
     completed = "completed"      # выполнено
 
 
+class ViewMode(enum.Enum):
+    """Режимы просмотра для веб-клиентов"""
+    simplified = "simplified"
+    mkd = "mkd"
+
+
 class WebUserRole(enum.Enum):
     """Роли веб-пользователей"""
     admin = "admin"
