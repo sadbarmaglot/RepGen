@@ -59,6 +59,16 @@ async def create_signed_url(
         # Файл не существует или другая ошибка
         raise FileNotFoundError(f"Не удалось создать signed URL для {blob_name}: {e}")
 
+async def get_blob_size(blob_name: str) -> Optional[int]:
+    """Возвращает размер файла в GCS (bytes) без скачивания, или None если файл не найден"""
+    blob = bucket.blob(blob_name)
+    try:
+        await asyncio.to_thread(blob.reload)
+        return blob.size
+    except Exception:
+        return None
+
+
 async def upload_to_gcs_with_blob(file_path, suffix):
     """
     Асинхронная загрузка файла в Google Cloud Storage

@@ -16,7 +16,11 @@ from fastapi import HTTPException
 from PIL import Image, ImageOps
 
 from settings import FOCUS_API_URL, FOCUS_API_KEY, FOCUS_API_SECRET
-from common.gc_utils import upload_file_to_gcs_with_signed_url, download_file_from_gcs
+from common.gc_utils import (
+    upload_file_to_gcs_with_signed_url,
+    create_signed_url,
+    upload_bytes_to_gcs,
+)
 from common.logging_utils import get_user_logger
 
 logger = get_user_logger(__name__)
@@ -60,7 +64,17 @@ class FocusAPIService:
         b64_data = base64.b64encode(image_bytes).decode("utf-8")
         payload_data = {
             "data": f"data:{mime_type};base64,{b64_data}",
-            "filename": filename
+            "filename": filename,
+            "return_links": True,
+        }
+        return json.dumps(payload_data)
+
+    def _prepare_url_payload(self, image_url: str, filename: str) -> str:
+        """Подготавливает payload с URL изображения для Focus API"""
+        payload_data = {
+            "data": image_url,
+            "filename": filename,
+            "return_links": True,
         }
         return json.dumps(payload_data)
 
@@ -172,52 +186,6 @@ class FocusAPIService:
                 f"Не удалось сжать до <= {max_image_bytes} bytes."
             ),
         )
-    
-    async def download_image_from_gcs(
-        self,
-        image_name: str,
-        trace_id: Optional[str] = None,
-    ) -> Tuple[bytes, str]:
-        """
-        Загружает изображение из GCS по имени файла
-        
-        Args:
-            image_name: Имя файла в GCS bucket
-            
-        Returns:
-            tuple[bytes, str]: (байты изображения, MIME тип)
-            
-        Raises:
-            HTTPException: При ошибке загрузки из GCS
-        """
-        t0 = time.perf_counter()
-        try:
-            image_bytes, mime_type = await download_file_from_gcs(image_name)
-            logger.info(
-                "Focus API: downloaded image from GCS (trace=%s, name=%s, bytes=%s, mime=%s, %.0fms)",
-                trace_id,
-                image_name,
-                len(image_bytes),
-                mime_type,
-                (time.perf_counter() - t0) * 1000,
-            )
-            return image_bytes, mime_type
-        except FileNotFoundError as e:
-            raise HTTPException(
-                status_code=404,
-                detail=str(e)
-            )
-        except Exception as e:
-            error_msg = f"Ошибка при загрузке изображения {image_name} из GCS: {str(e)}"
-            logger.error(
-                "Focus API: GCS download failed (trace=%s, name=%s, %.0fms): %s",
-                trace_id,
-                image_name,
-                (time.perf_counter() - t0) * 1000,
-                error_msg,
-                exc_info=True,
-            )
-            raise HTTPException(status_code=500, detail=error_msg)
     
     async def process_image(
         self,
@@ -344,7 +312,7 @@ class FocusAPIService:
                 try:
                     error_detail = e.response.json()
                     error_msg += f" - {error_detail}"
-                except:
+                except Exception:
                     error_msg += f" - {e.response.text}"
             logger.error(
                 "Focus API: HTTP error (trace=%s, %.0fms): %s",
@@ -379,52 +347,182 @@ class FocusAPIService:
     async def process_image_by_name(
         self,
         image_name: str,
-        mime_type: Optional[str] = None
+        mime_type: Optional[str] = None,
     ) -> dict:
         """
-        Загружает изображение из GCS и отправляет на обработку в Focus API
-        
-        Args:
-            image_name: Имя файла в GCS bucket
-            mime_type: MIME тип изображения (опционально, определяется автоматически)
-            
-        Returns:
-            dict: Ответ от API
-            
-        Raises:
-            HTTPException: При ошибке загрузки или запроса к API
+        Обрабатывает изображение из GCS через Focus API.
+
+        Использует URL mode (передаёт signed URL вместо base64) и return_links=true.
+        HEIC-конвертация и сжатие выполняются на этапе загрузки (file_upload_service),
+        поэтому здесь всегда можно отправлять URL напрямую.
         """
         trace_id = uuid.uuid4().hex[:12]
         t_total = time.perf_counter()
-        logger.info(
-            "Focus API: process_image_by_name start (trace=%s, name=%s, requested_mime=%s)",
-            trace_id,
-            image_name,
-            mime_type,
-        )
-
-        image_bytes, detected_mime_type = await self.download_image_from_gcs(
-            image_name,
-            trace_id=trace_id,
-        )
-        
-        final_mime_type = mime_type or detected_mime_type
-        
-        result = await self.process_image(
-            image_bytes,
-            image_name,
-            final_mime_type,
-            trace_id=trace_id,
-        )
 
         logger.info(
-            "Focus API: process_image_by_name done (trace=%s, name=%s, total=%.0fms)",
+            "Focus API: process_image_by_name start (trace=%s, name=%s)",
             trace_id,
             image_name,
-            (time.perf_counter() - t_total) * 1000,
         )
-        return result
+
+        signed_url = await create_signed_url(image_name)
+        payload = self._prepare_url_payload(signed_url, image_name)
+
+        try:
+            headers = self._prepare_headers(payload)
+
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                t_http = time.perf_counter()
+                response = await client.post(
+                    self.api_url, content=payload, headers=headers
+                )
+                http_ms = (time.perf_counter() - t_http) * 1000
+                response.raise_for_status()
+
+                content_type = response.headers.get("content-type", "").lower()
+                logger.info(
+                    "Focus API: response (trace=%s, status=%s, content_type=%s, bytes=%s, %.0fms)",
+                    trace_id,
+                    response.status_code,
+                    content_type,
+                    len(response.content),
+                    http_ms,
+                )
+
+                # JSON с ссылками (return_links) или ZIP (фоллбэк)
+                if "application/json" in content_type:
+                    result_data = response.json()
+                    if "png_url" in result_data or "dxf_url" in result_data:
+                        result = await self._process_links_response(
+                            result_data, image_name, trace_id=trace_id
+                        )
+                    else:
+                        result = result_data
+                elif "application/zip" in content_type or "application/x-zip-compressed" in content_type:
+                    result = await self._process_zip_response(
+                        response.content, image_name, trace_id=trace_id
+                    )
+                else:
+                    try:
+                        result = response.json()
+                    except json.JSONDecodeError:
+                        result = {"response": response.text}
+
+                logger.info(
+                    "Focus API: process_image_by_name done (trace=%s, total=%.0fms)",
+                    trace_id,
+                    (time.perf_counter() - t_total) * 1000,
+                )
+                return result
+
+        except httpx.HTTPStatusError as e:
+            error_msg = f"Ошибка HTTP при запросе к Focus API: {e.response.status_code}"
+            if e.response.text:
+                try:
+                    error_detail = e.response.json()
+                    error_msg += f" - {error_detail}"
+                except Exception:
+                    error_msg += f" - {e.response.text}"
+            logger.error(
+                "Focus API: HTTP error (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+            )
+            raise HTTPException(status_code=e.response.status_code, detail=error_msg)
+        except httpx.TimeoutException:
+            error_msg = f"Таймаут при запросе к Focus API (>{self.timeout}с)"
+            logger.error(
+                "Focus API: timeout (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+            )
+            raise HTTPException(status_code=504, detail=error_msg)
+        except HTTPException:
+            raise
+        except Exception as e:
+            error_msg = f"Неожиданная ошибка при запросе к Focus API: {str(e)}"
+            logger.error(
+                "Focus API: unexpected error (trace=%s, %.0fms): %s",
+                trace_id,
+                (time.perf_counter() - t_total) * 1000,
+                error_msg,
+                exc_info=True,
+            )
+            raise HTTPException(status_code=500, detail=error_msg)
     
+    async def _process_links_response(
+        self,
+        response_data: dict,
+        original_filename: str,
+        trace_id: Optional[str] = None,
+    ) -> Dict:
+        """
+        Обрабатывает JSON ответ с ссылками от Focus API (return_links=true).
+        Скачивает файлы по ссылкам и загружает в наш GCS.
+        """
+        t0 = time.perf_counter()
+        image_files = []
+        dxf_files = []
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            if response_data.get("png_url"):
+                try:
+                    resp = await client.get(response_data["png_url"])
+                    resp.raise_for_status()
+
+                    png_name = f"focus_plan_{uuid.uuid4()}.png"
+                    await upload_bytes_to_gcs(resp.content, png_name, "image/png")
+                    signed_url = await create_signed_url(
+                        png_name, content_type="image/png"
+                    )
+                    image_files.append(
+                        {"filename": png_name, "signed_url": signed_url}
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Focus API: failed to download png_url (trace=%s): %s",
+                        trace_id,
+                        e,
+                    )
+
+            if response_data.get("dxf_url"):
+                try:
+                    resp = await client.get(response_data["dxf_url"])
+                    resp.raise_for_status()
+
+                    dxf_name = f"focus_plan_{uuid.uuid4()}.dxf"
+                    await upload_bytes_to_gcs(
+                        resp.content, dxf_name, "application/dxf"
+                    )
+                    signed_url = await create_signed_url(
+                        dxf_name, content_type="application/dxf"
+                    )
+                    dxf_files.append(
+                        {"filename": dxf_name, "signed_url": signed_url}
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Focus API: failed to download dxf_url (trace=%s): %s",
+                        trace_id,
+                        e,
+                    )
+
+        logger.info(
+            "Focus API: links response processed (trace=%s, images=%s, dxf=%s, %.0fms)",
+            trace_id,
+            len(image_files),
+            len(dxf_files),
+            (time.perf_counter() - t0) * 1000,
+        )
+
+        return {
+            "image_files": image_files,
+            "dxf_files": dxf_files,
+            "original_filename": original_filename,
+        }
+
     async def _process_zip_response(
         self,
         zip_bytes: bytes,
