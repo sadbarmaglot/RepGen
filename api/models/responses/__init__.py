@@ -22,7 +22,8 @@ from .mark_responses import (
     MarkResponse,
     MarkListResponse,
     MarkWithPhotosResponse,
-    MarkWithPhotosListResponse
+    MarkWithPhotosListResponse,
+    ObjectMarksWithPhotosResponse
 )
 from .photo_responses import (
     PhotoResponse,
@@ -88,6 +89,7 @@ __all__ = [
     "MarkListResponse",
     "MarkWithPhotosResponse",
     "MarkWithPhotosListResponse",
+    "ObjectMarksWithPhotosResponse",
     # Photo responses
     "PhotoResponse",
     "PhotoListResponse",

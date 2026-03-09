@@ -54,3 +54,9 @@ class MarkWithPhotosListResponse(BaseModel):
     """Ответ со списком отметок с фотографиями"""
     marks: list[MarkWithPhotosResponse] = Field(..., description="Список отметок с фотографиями")
     total: int = Field(..., description="Общее количество отметок")
+
+class ObjectMarksWithPhotosResponse(BaseModel):
+    """Batch-ответ: все отметки с фотографиями для всех планов объекта"""
+    plans: dict[int, MarkWithPhotosListResponse] = Field(..., description="Словарь plan_id → отметки с фотографиями")
+    total_marks: int = Field(..., description="Общее количество отметок по всем планам")
+    total_photos: int = Field(..., description="Общее количество фотографий по всем планам")

@@ -8,8 +8,9 @@ from api.models.requests import (
     MarkUpdateRequest
 )
 from api.models.responses import (
-    MarkResponse, 
-    MarkListResponse
+    MarkResponse,
+    MarkListResponse,
+    ObjectMarksWithPhotosResponse
 )
 from api.dependencies.auth_dependencies import get_current_user
 from api.dependencies.access_dependencies import check_mark_access
@@ -46,6 +47,22 @@ async def get_plan_marks(
     try:
         mark_service = MarkService(db)
         return await mark_service.get_plan_marks(plan_id, current_user.id, skip, limit)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@router.get("/object/{object_id}/with-photos", response_model=ObjectMarksWithPhotosResponse)
+async def get_object_marks_with_photos(
+    object_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Batch: все отметки с фотографиями для всех планов объекта"""
+    try:
+        mark_service = MarkService(db)
+        return await mark_service.get_object_marks_with_photos(object_id, current_user.id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -7,10 +7,11 @@ import asyncio
 from api.models.entities import Mark, Plan, Photo
 from api.models.requests import MarkCreateRequest, MarkUpdateRequest
 from api.models.responses import (
-    MarkResponse, 
-    MarkListResponse, 
-    MarkWithPhotosResponse, 
+    MarkResponse,
+    MarkListResponse,
+    MarkWithPhotosResponse,
     MarkWithPhotosListResponse,
+    ObjectMarksWithPhotosResponse,
     PhotoResponse
 )
 from api.services.access_control_service import AccessControlService
@@ -260,6 +261,91 @@ class MarkService:
         return MarkWithPhotosListResponse(
             marks=mark_responses,
             total=total
+        )
+
+    async def get_object_marks_with_photos(self, object_id: int, user_id: int) -> ObjectMarksWithPhotosResponse:
+        """Batch: все отметки с фотографиями для всех планов объекта одним запросом"""
+
+        if not await self.access_control.check_object_access(object_id, user_id):
+            raise ValueError("Объект не найден или у вас нет прав доступа к нему")
+
+        plan_ids_result = await self.db.execute(
+            select(Plan.id).where(Plan.object_id == object_id).order_by(Plan.id)
+        )
+        plan_ids = [row[0] for row in plan_ids_result.all()]
+
+        if not plan_ids:
+            return ObjectMarksWithPhotosResponse(plans={}, total_marks=0, total_photos=0)
+
+        # Один запрос: все отметки всех планов + eager-загрузка фото
+        result = await self.db.execute(
+            select(Mark)
+            .options(selectinload(Mark.photos))
+            .where(Mark.plan_id.in_(plan_ids))
+            .order_by(Mark.plan_id, Mark.id)
+        )
+        all_marks = result.scalars().all()
+
+        # Группируем по plan_id, сортируем фото, собираем для batch signed URLs
+        marks_by_plan: dict[int, list] = {pid: [] for pid in plan_ids}
+        all_photos = []
+        mark_photo_mapping = {}
+
+        for mark in all_marks:
+            marks_by_plan[mark.plan_id].append(mark)
+            sorted_photos = sorted(
+                mark.photos,
+                key=lambda p: (p.order if p.order is not None else float('inf'), p.id)
+            )
+            mark_photo_mapping[mark.id] = sorted_photos
+            all_photos.extend(sorted_photos)
+
+        # Один asyncio.gather для signed URLs всех фото разом
+        photo_tasks = [self._photo_to_response(photo) for photo in all_photos]
+        all_photo_responses = await asyncio.gather(*photo_tasks)
+        photo_response_map = {
+            photo.id: resp
+            for photo, resp in zip(all_photos, all_photo_responses)
+        }
+
+        # Формируем ответ, сгруппированный по планам
+        plans_response = {}
+        total_marks = 0
+        total_photos = 0
+
+        for plan_id in plan_ids:
+            mark_responses = []
+            for mark in marks_by_plan[plan_id]:
+                photo_responses = [
+                    photo_response_map[p.id] for p in mark_photo_mapping[mark.id]
+                ]
+                mark_responses.append(MarkWithPhotosResponse(
+                    id=mark.id,
+                    plan_id=mark.plan_id,
+                    name=mark.name,
+                    description=mark.description,
+                    type=mark.type,
+                    x=mark.x,
+                    y=mark.y,
+                    is_horizontal=mark.is_horizontal,
+                    defect_volume_value=mark.defect_volume_value,
+                    defect_volume_unit=mark.defect_volume_unit,
+                    defect_type=mark.defect_type,
+                    photos=photo_responses,
+                    created_at=mark.created_at
+                ))
+                total_photos += len(photo_responses)
+
+            total_marks += len(mark_responses)
+            plans_response[plan_id] = MarkWithPhotosListResponse(
+                marks=mark_responses,
+                total=len(mark_responses)
+            )
+
+        return ObjectMarksWithPhotosResponse(
+            plans=plans_response,
+            total_marks=total_marks,
+            total_photos=total_photos
         )
 
     async def _photo_to_response(self, photo: Photo) -> PhotoResponse:

@@ -10,6 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from datetime import datetime
 
 from common.whitelist_utils import load_whitelist
@@ -71,6 +72,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# GZip сжатие ответов > 1KB
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # User logging middleware
 app.add_middleware(UserLoggingMiddleware)
