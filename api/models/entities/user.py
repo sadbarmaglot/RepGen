@@ -26,5 +26,9 @@ class User(Base):
     # Связь с участием в объектах
     object_memberships = relationship("ObjectMember", back_populates="user", lazy="select", cascade="all, delete-orphan")
     
+    @property
+    def is_admin(self) -> bool:
+        return self.global_role == GlobalRoleType.admin
+
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', name='{self.name}', global_role='{self.global_role}')>"

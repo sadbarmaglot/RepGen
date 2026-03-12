@@ -98,9 +98,9 @@ DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessin
 
 
 class ReportService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def generate_defects_report(self, object_id: int, user_id: int) -> str:
         """

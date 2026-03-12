@@ -60,7 +60,7 @@ async def analyze_image(
         # Если указан photo_id, сохраняем результат в БД
         if request.photo_id is not None:
             try:
-                service = DefectAnalysisService(db)
+                service = DefectAnalysisService(db, is_admin=current_user.is_admin)
                 await service.create_analysis(
                     photo_id=request.photo_id,
                     defect_description=result["description"],
@@ -143,7 +143,7 @@ async def get_defect_analysis_by_photo(
     Получение анализов дефектов для конкретной фотографии
     """
     try:
-        service = DefectAnalysisService(db)
+        service = DefectAnalysisService(db, is_admin=current_user.is_admin)
         return await service.get_by_photo(photo_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -166,7 +166,7 @@ async def update_defect_analysis(
     Если анализ для фото не существует, создается новый.
     """
     try:
-        service = DefectAnalysisService(db)
+        service = DefectAnalysisService(db, is_admin=current_user.is_admin)
         analysis = await service.update_analysis(
             photo_id=photo_id,
             user_id=current_user.id,
@@ -208,7 +208,7 @@ async def delete_defect_analysis(
     Удаление анализа дефекта для фотографии
     """
     try:
-        service = DefectAnalysisService(db)
+        service = DefectAnalysisService(db, is_admin=current_user.is_admin)
         await service.delete_analysis(photo_id, current_user.id)
         return {"success": True, "message": f"Анализ для фото {photo_id} удалён"}
     except ValueError as e:
@@ -228,7 +228,7 @@ async def get_defect_analysis_by_mark(
     Получение анализов дефектов для всех фотографий марки
     """
     try:
-        service = DefectAnalysisService(db)
+        service = DefectAnalysisService(db, is_admin=current_user.is_admin)
         return await service.get_by_mark(mark_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -247,7 +247,7 @@ async def get_defect_analysis_by_plan(
     Получение анализов дефектов для всех фотографий плана
     """
     try:
-        service = DefectAnalysisService(db)
+        service = DefectAnalysisService(db, is_admin=current_user.is_admin)
         return await service.get_by_plan(plan_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -266,7 +266,7 @@ async def get_defect_analysis_by_object(
     Получение анализов дефектов для всех фотографий объекта
     """
     try:
-        service = DefectAnalysisService(db)
+        service = DefectAnalysisService(db, is_admin=current_user.is_admin)
         return await service.get_by_object(object_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

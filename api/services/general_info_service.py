@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 class GeneralInfoService:
     """Сервис для работы с общей информацией объекта"""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def get_by_object(self, object_id: int, user_id: int) -> GeneralInfoResponse:
         """Получение общей информации объекта"""

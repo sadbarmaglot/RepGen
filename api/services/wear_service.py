@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 class WearService:
     """Сервис для расчёта износа объектов"""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     @staticmethod
     def get_technical_condition(assessment_percent: Optional[float]) -> Optional[str]:

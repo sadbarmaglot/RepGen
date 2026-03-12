@@ -23,11 +23,11 @@ CATEGORY_INPUT_MAP = {
 
 
 class DefectAnalysisService:
-    """Сервис для работы с анализом дефектов по фотографиям"""
-    
-    def __init__(self, db: AsyncSession):
+    """Сервис для работы с анализом дефектов по фотографиями"""
+
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
     
     async def create_analysis(
         self,

@@ -12,9 +12,9 @@ from api.services.redis_service import redis_service
 from api.services.access_control_service import AccessControlService
 
 class PlanService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def create_plan(self, user_id: int, plan_data: PlanCreateRequest) -> PlanResponse:
         """Создание нового плана"""

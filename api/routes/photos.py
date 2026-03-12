@@ -25,7 +25,7 @@ async def create_photo(
 ):
     """Создание новой фотографии"""
     try:
-        photo_service = PhotoService(db)
+        photo_service = PhotoService(db, is_admin=current_user.is_admin)
         photo = await photo_service.create_photo(current_user.id, photo_data)
         return photo
     except ValueError as e:
@@ -44,7 +44,7 @@ async def get_mark_photos(
 ):
     """Получение списка фотографий отметки"""
     try:
-        photo_service = PhotoService(db)
+        photo_service = PhotoService(db, is_admin=current_user.is_admin)
         return await photo_service.get_mark_photos(mark_id, current_user.id, skip, limit)
     except ValueError as e:
         raise HTTPException(
@@ -59,7 +59,7 @@ async def get_photo(
     db: AsyncSession = Depends(get_db)
 ):
     """Получение фотографии по ID"""
-    photo_service = PhotoService(db)
+    photo_service = PhotoService(db, is_admin=current_user.is_admin)
     photo = await photo_service.get_photo(photo_id, current_user.id)
     
     if not photo:
@@ -79,7 +79,7 @@ async def update_photo(
 ):
     """Обновление фотографии (владельцем проекта или участником объекта)"""
     try:
-        photo_service = PhotoService(db)
+        photo_service = PhotoService(db, is_admin=current_user.is_admin)
         photo = await photo_service.update_photo(photo_id, current_user.id, photo_data)
         
         if not photo:
@@ -103,7 +103,7 @@ async def delete_photo(
 ):
     """Удаление фотографии (владельцем проекта или участником объекта)"""
     try:
-        photo_service = PhotoService(db)
+        photo_service = PhotoService(db, is_admin=current_user.is_admin)
         success = await photo_service.delete_photo(photo_id, current_user.id)
         
         if not success:

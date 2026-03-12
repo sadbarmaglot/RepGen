@@ -10,22 +10,21 @@ from api.services.access_control_service import AccessControlService
 from api.models.database.enums import ObjectStatus
 
 class ObjectService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.is_admin = is_admin
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def create_object(self, user_id: int, object_data: ObjectCreateRequest) -> ObjectResponse:
         """Создание нового объекта"""
-        
-        # Проверяем, что проект существует и принадлежит пользователю
-        result = await self.db.execute(
-            select(Project).where(
-                Project.id == object_data.project_id,
-                Project.owner_id == user_id
-            )
-        )
+
+        # Проверяем, что проект существует (и принадлежит пользователю, если не admin)
+        query = select(Project).where(Project.id == object_data.project_id)
+        if not self.is_admin:
+            query = query.where(Project.owner_id == user_id)
+        result = await self.db.execute(query)
         project = result.scalar_one_or_none()
-        
+
         if not project:
             raise ValueError("Проект не найден или у вас нет прав доступа к нему")
         
@@ -76,10 +75,13 @@ class ObjectService:
         all_objects = all_objects_result.scalars().all()
         
         # Фильтруем объекты по доступу пользователя
-        accessible_objects = []
-        for obj in all_objects:
-            if await self.access_control.check_object_access(obj.id, user_id):
-                accessible_objects.append(obj)
+        if self.is_admin:
+            accessible_objects = list(all_objects)
+        else:
+            accessible_objects = []
+            for obj in all_objects:
+                if await self.access_control.check_object_access(obj.id, user_id):
+                    accessible_objects.append(obj)
         
         total = len(accessible_objects)
         
@@ -95,15 +97,10 @@ class ObjectService:
 
     async def update_object(self, object_id: int, user_id: int, object_data: ObjectUpdateRequest) -> Optional[ObjectResponse]:
         """Обновление объекта (только владельцем проекта)"""
-        # Получаем объект и проверяем что пользователь владелец проекта
-        result = await self.db.execute(
-            select(Object)
-            .join(Project)
-            .where(
-                Object.id == object_id,
-                Project.owner_id == user_id
-            )
-        )
+        query = select(Object).join(Project).where(Object.id == object_id)
+        if not self.is_admin:
+            query = query.where(Project.owner_id == user_id)
+        result = await self.db.execute(query)
         object_ = result.scalar_one_or_none()
         
         if not object_:
@@ -128,15 +125,10 @@ class ObjectService:
 
     async def delete_object(self, object_id: int, user_id: int) -> bool:
         """Удаление объекта (только владельцем проекта)"""
-        # Получаем объект и проверяем что пользователь владелец проекта
-        result = await self.db.execute(
-            select(Object)
-            .join(Project)
-            .where(
-                Object.id == object_id,
-                Project.owner_id == user_id
-            )
-        )
+        query = select(Object).join(Project).where(Object.id == object_id)
+        if not self.is_admin:
+            query = query.where(Project.owner_id == user_id)
+        result = await self.db.execute(query)
         object_ = result.scalar_one_or_none()
         
         if not object_:

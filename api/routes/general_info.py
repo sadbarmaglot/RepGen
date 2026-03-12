@@ -28,7 +28,7 @@ async def get_object_general_info(
     даты, адресация, характеристики дома, статус и организация.
     """
     try:
-        service = GeneralInfoService(db)
+        service = GeneralInfoService(db, is_admin=current_user.is_admin)
         return await service.get_by_object(object_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -51,7 +51,7 @@ async def update_object_general_info(
     Создаёт запись если не существует.
     """
     try:
-        service = GeneralInfoService(db)
+        service = GeneralInfoService(db, is_admin=current_user.is_admin)
         data = request.model_dump(exclude_unset=True)
         return await service.update(object_id, current_user.id, data)
     except ValueError as e:

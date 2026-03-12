@@ -19,9 +19,9 @@ from common.gc_utils import create_signed_url
 from api.services.redis_service import redis_service
 
 class MarkService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def create_mark(self, user_id: int, mark_data: MarkCreateRequest) -> MarkResponse:
         """Создание новой отметки"""

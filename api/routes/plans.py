@@ -27,7 +27,7 @@ async def create_plan(
 ):
     """Создание нового плана"""
     try:
-        plan_service = PlanService(db)
+        plan_service = PlanService(db, is_admin=current_user.is_admin)
         plan = await plan_service.create_plan(current_user.id, plan_data)
         return plan
     except ValueError as e:
@@ -46,7 +46,7 @@ async def get_object_plans(
 ):
     """Получение списка планов объекта"""
     try:
-        plan_service = PlanService(db)
+        plan_service = PlanService(db, is_admin=current_user.is_admin)
         return await plan_service.get_object_plans(object_id, current_user.id, skip, limit)
     except ValueError as e:
         raise HTTPException(
@@ -61,7 +61,7 @@ async def get_plan(
     db: AsyncSession = Depends(get_db)
 ):
     """Получение плана по ID"""
-    plan_service = PlanService(db)
+    plan_service = PlanService(db, is_admin=current_user.is_admin)
     plan = await plan_service.get_plan(plan_id, current_user.id)
     
     if not plan:
@@ -81,7 +81,7 @@ async def update_plan(
 ):
     """Обновление плана (владельцем проекта или участником объекта)"""
     try:
-        plan_service = PlanService(db)
+        plan_service = PlanService(db, is_admin=current_user.is_admin)
         plan = await plan_service.update_plan(plan_id, current_user.id, plan_data)
         
         if not plan:
@@ -105,7 +105,7 @@ async def delete_plan(
 ):
     """Удаление плана (владельцем проекта или участником объекта)"""
     try:
-        plan_service = PlanService(db)
+        plan_service = PlanService(db, is_admin=current_user.is_admin)
         success = await plan_service.delete_plan(plan_id, current_user.id)
         
         if not success:
@@ -129,7 +129,7 @@ async def get_plan_marks_with_photos(
 ):
     """Получение всех отметок плана со всеми их фотографиями"""
     try:
-        mark_service = MarkService(db)
+        mark_service = MarkService(db, is_admin=current_user.is_admin)
         return await mark_service.get_plan_marks_with_photos(plan_id, current_user.id, skip, limit)
     except ValueError as e:
         raise HTTPException(

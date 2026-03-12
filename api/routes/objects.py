@@ -25,7 +25,7 @@ async def create_object(
 ):
     """Создание нового объекта"""
     try:
-        object_service = ObjectService(db)
+        object_service = ObjectService(db, is_admin=current_user.is_admin)
         object_ = await object_service.create_object(current_user.id, object_data)
         return object_
     except ValueError as e:
@@ -44,7 +44,7 @@ async def get_project_objects(
 ):
     """Получение списка объектов проекта (для владельцев и участников объектов)"""
     try:
-        object_service = ObjectService(db)
+        object_service = ObjectService(db, is_admin=current_user.is_admin)
         return await object_service.get_project_objects(project_id, current_user.id, skip, limit)
     except ValueError as e:
         raise HTTPException(
@@ -59,7 +59,7 @@ async def get_object(
     db: AsyncSession = Depends(get_db)
 ):
     """Получение объекта по ID"""
-    object_service = ObjectService(db)
+    object_service = ObjectService(db, is_admin=current_user.is_admin)
     object_ = await object_service.get_object(object_id, current_user.id)
     
     if not object_:
@@ -79,7 +79,7 @@ async def update_object(
 ):
     """Обновление объекта (название, адрес и описание)"""
     try:
-        object_service = ObjectService(db)
+        object_service = ObjectService(db, is_admin=current_user.is_admin)
         object_ = await object_service.update_object(object_id, current_user.id, object_data)
         
         if not object_:
@@ -103,7 +103,7 @@ async def delete_object(
 ):
     """Удаление объекта"""
     try:
-        object_service = ObjectService(db)
+        object_service = ObjectService(db, is_admin=current_user.is_admin)
         success = await object_service.delete_object(object_id, current_user.id)
         
         if not success:

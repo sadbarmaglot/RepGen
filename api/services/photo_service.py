@@ -18,9 +18,9 @@ from api.services.construction_queue_service import get_construction_queue_servi
 logger = get_user_logger(__name__)
 
 class PhotoService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-        self.access_control = AccessControlService(db)
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def create_photo(self, user_id: int, photo_data: PhotoCreateRequest) -> PhotoResponse:
         """Создание новой фотографии"""

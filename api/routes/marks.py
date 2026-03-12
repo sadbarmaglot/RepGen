@@ -26,7 +26,7 @@ async def create_mark(
 ):
     """Создание новой отметки"""
     try:
-        mark_service = MarkService(db)
+        mark_service = MarkService(db, is_admin=current_user.is_admin)
         mark = await mark_service.create_mark(current_user.id, mark_data)
         return mark
     except ValueError as e:
@@ -45,7 +45,7 @@ async def get_plan_marks(
 ):
     """Получение списка отметок плана"""
     try:
-        mark_service = MarkService(db)
+        mark_service = MarkService(db, is_admin=current_user.is_admin)
         return await mark_service.get_plan_marks(plan_id, current_user.id, skip, limit)
     except ValueError as e:
         raise HTTPException(
@@ -61,7 +61,7 @@ async def get_object_marks_with_photos(
 ):
     """Batch: все отметки с фотографиями для всех планов объекта"""
     try:
-        mark_service = MarkService(db)
+        mark_service = MarkService(db, is_admin=current_user.is_admin)
         return await mark_service.get_object_marks_with_photos(object_id, current_user.id)
     except ValueError as e:
         raise HTTPException(
@@ -76,7 +76,7 @@ async def get_mark(
     db: AsyncSession = Depends(get_db)
 ):
     """Получение отметки по ID"""
-    mark_service = MarkService(db)
+    mark_service = MarkService(db, is_admin=current_user.is_admin)
     mark = await mark_service.get_mark(mark_id, current_user.id)
     
     if not mark:
@@ -96,7 +96,7 @@ async def update_mark(
 ):
     """Обновление отметки (владельцем проекта или участником объекта)"""
     try:
-        mark_service = MarkService(db)
+        mark_service = MarkService(db, is_admin=current_user.is_admin)
         mark = await mark_service.update_mark(mark_id, current_user.id, mark_data)
         
         if not mark:
@@ -120,7 +120,7 @@ async def delete_mark(
 ):
     """Удаление отметки (владельцем проекта или участником объекта)"""
     try:
-        mark_service = MarkService(db)
+        mark_service = MarkService(db, is_admin=current_user.is_admin)
         success = await mark_service.delete_mark(mark_id, current_user.id)
         
         if not success:

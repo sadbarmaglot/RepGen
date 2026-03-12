@@ -6,12 +6,15 @@ from api.models.entities import Project, Object, Plan, Mark, Photo, ObjectMember
 
 class AccessControlService:
     """Сервис для проверки прав доступа к ресурсам"""
-    
-    def __init__(self, db: AsyncSession):
+
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
+        self.is_admin = is_admin
 
     async def check_project_access(self, project_id: int, user_id: int) -> bool:
         """Проверка доступа к проекту (владелец или участник объектов)"""
+        if self.is_admin:
+            return True
         # Проверяем является ли пользователь владельцем проекта
         owner_result = await self.db.execute(
             select(Project).where(
@@ -39,6 +42,8 @@ class AccessControlService:
 
     async def check_object_access(self, object_id: int, user_id: int) -> bool:
         """Проверка доступа к объекту (владелец проекта или участник объекта)"""
+        if self.is_admin:
+            return True
         # Проверяем является ли пользователь владельцем проекта
         owner_result = await self.db.execute(
             select(Object)
@@ -66,6 +71,8 @@ class AccessControlService:
 
     async def check_plan_access(self, plan_id: int, user_id: int) -> bool:
         """Проверка доступа к плану (через доступ к объекту)"""
+        if self.is_admin:
+            return True
         result = await self.db.execute(
             select(Plan).where(Plan.id == plan_id)
         )
@@ -78,6 +85,8 @@ class AccessControlService:
 
     async def check_mark_access(self, mark_id: int, user_id: int) -> bool:
         """Проверка доступа к отметке (через доступ к плану)"""
+        if self.is_admin:
+            return True
         result = await self.db.execute(
             select(Mark).where(Mark.id == mark_id)
         )
@@ -90,6 +99,8 @@ class AccessControlService:
 
     async def check_photo_access(self, photo_id: int, user_id: int) -> bool:
         """Проверка доступа к фото (через доступ к отметке)"""
+        if self.is_admin:
+            return True
         result = await self.db.execute(
             select(Photo).where(Photo.id == photo_id)
         )
@@ -130,7 +141,14 @@ class AccessControlService:
 
     async def is_project_owner(self, project_id: int, user_id: int) -> bool:
         """Проверка является ли пользователь владельцем проекта"""
-        return await self.check_project_access(project_id, user_id)
+        if self.is_admin:
+            return True
+        result = await self.db.execute(
+            select(Project).where(
+                and_(Project.id == project_id, Project.owner_id == user_id)
+            )
+        )
+        return result.scalar_one_or_none() is not None
 
     async def is_object_member(self, object_id: int, user_id: int) -> bool:
         """Проверка является ли пользователь участником объекта"""

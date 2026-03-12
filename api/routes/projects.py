@@ -26,7 +26,7 @@ async def create_project(
 ):
     """Создание нового проекта"""
     try:
-        project_service = ProjectService(db)
+        project_service = ProjectService(db, is_admin=current_user.is_admin)
         project = await project_service.create_project(current_user.id, project_data)
         return project
     except ValueError as e:
@@ -43,7 +43,7 @@ async def get_user_projects(
     db: AsyncSession = Depends(get_db)
 ):
     """Получение списка проектов текущего пользователя"""
-    project_service = ProjectService(db)
+    project_service = ProjectService(db, is_admin=current_user.is_admin)
     return await project_service.get_user_projects(current_user.id, skip, limit)
 
 @router.get("/all", response_model=ProjectListResponse)
@@ -64,7 +64,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db)
 ):
     """Получение проекта по ID"""
-    project_service = ProjectService(db)
+    project_service = ProjectService(db, is_admin=current_user.is_admin)
     project = await project_service.get_project(project_id, current_user.id)
     
     if not project:
@@ -83,7 +83,7 @@ async def update_project(
     db: AsyncSession = Depends(get_db)
 ):
     """Обновление проекта (название и описание)"""
-    project_service = ProjectService(db)
+    project_service = ProjectService(db, is_admin=current_user.is_admin)
     project = await project_service.update_project(project_id, current_user.id, project_data)
     
     if not project:
@@ -103,7 +103,7 @@ async def change_project_owner(
 ):
     """Смена владельца проекта"""
     try:
-        project_service = ProjectService(db)
+        project_service = ProjectService(db, is_admin=current_user.is_admin)
         project = await project_service.change_project_owner(project_id, current_user.id, owner_data)
         
         if not project:
@@ -126,7 +126,7 @@ async def delete_project(
     db: AsyncSession = Depends(get_db)
 ):
     """Удаление проекта"""
-    project_service = ProjectService(db)
+    project_service = ProjectService(db, is_admin=current_user.is_admin)
     success = await project_service.delete_project(project_id, current_user.id)
     
     if not success:

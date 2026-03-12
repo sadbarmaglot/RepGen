@@ -27,7 +27,7 @@ async def get_wear_elements(
     с их кодами, названиями и дефолтными весами.
     """
     try:
-        service = WearService(db)
+        service = WearService(db, is_admin=current_user.is_admin)
         return await service.get_elements()
     except Exception as e:
         logger.error(f"Ошибка при получении справочника элементов: {str(e)}")
@@ -51,7 +51,7 @@ async def get_object_wear(
     - overall_condition: итоговая категория объекта
     """
     try:
-        service = WearService(db)
+        service = WearService(db, is_admin=current_user.is_admin)
         return await service.get_object_wear(object_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -74,7 +74,7 @@ async def update_object_wear(
     Возвращает полный расчёт износа с обновлёнными данными.
     """
     try:
-        service = WearService(db)
+        service = WearService(db, is_admin=current_user.is_admin)
         items_data = [item.model_dump() for item in request.items]
         return await service.update_object_wear(object_id, current_user.id, items_data)
     except ValueError as e:
@@ -99,7 +99,7 @@ async def update_single_wear_item(
     Возвращает полный расчёт износа (чтобы обновить total_wear на фронте).
     """
     try:
-        service = WearService(db)
+        service = WearService(db, is_admin=current_user.is_admin)
         return await service.update_single_item(
             object_id=object_id,
             element_id=element_id,

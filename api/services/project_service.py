@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, distinct
+from sqlalchemy import select, distinct, func
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from api.models.entities import Project, User, Object, ObjectMember
@@ -7,8 +7,9 @@ from api.models.requests import ProjectCreateRequest, ProjectUpdateRequest, Proj
 from api.models.responses import ProjectResponse, ProjectListResponse
 
 class ProjectService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
+        self.is_admin = is_admin
 
     async def create_project(self, owner_id: int, project_data: ProjectCreateRequest) -> ProjectResponse:
         """Создание нового проекта"""
@@ -35,6 +36,13 @@ class ProjectService:
 
     async def get_project(self, project_id: int, user_id: int) -> Optional[ProjectResponse]:
         """Получение проекта по ID (для владельца или участника объектов)"""
+        if self.is_admin:
+            result = await self.db.execute(
+                select(Project).where(Project.id == project_id)
+            )
+            project = result.scalar_one_or_none()
+            return ProjectResponse.model_validate(project) if project else None
+
         # Сначала проверяем является ли пользователь владельцем
         result = await self.db.execute(
             select(Project).where(
@@ -43,10 +51,10 @@ class ProjectService:
             )
         )
         project = result.scalar_one_or_none()
-        
+
         if project:
             return ProjectResponse.model_validate(project)
-        
+
         # Если не владелец, проверяем участие в объектах проекта
         member_result = await self.db.execute(
             select(Project)
@@ -58,10 +66,10 @@ class ProjectService:
             )
         )
         project = member_result.scalar_one_or_none()
-        
+
         if not project:
             return None
-        
+
         return ProjectResponse.model_validate(project)
 
     async def get_user_projects(self, user_id: int, skip: int = 0, limit: int = 100) -> ProjectListResponse:
@@ -105,12 +113,10 @@ class ProjectService:
 
     async def update_project(self, project_id: int, user_id: int, project_data: ProjectUpdateRequest) -> Optional[ProjectResponse]:
         """Обновление проекта (только владельцем)"""
-        result = await self.db.execute(
-            select(Project).where(
-                Project.id == project_id,
-                Project.owner_id == user_id
-            )
-        )
+        query = select(Project).where(Project.id == project_id)
+        if not self.is_admin:
+            query = query.where(Project.owner_id == user_id)
+        result = await self.db.execute(query)
         project = result.scalar_one_or_none()
         
         if not project:
@@ -131,13 +137,10 @@ class ProjectService:
 
     async def change_project_owner(self, project_id: int, current_owner_id: int, new_owner_data: ProjectChangeOwnerRequest) -> Optional[ProjectResponse]:
         """Смена владельца проекта"""
-
-        result = await self.db.execute(
-            select(Project).where(
-                Project.id == project_id,
-                Project.owner_id == current_owner_id
-            )
-        )
+        query = select(Project).where(Project.id == project_id)
+        if not self.is_admin:
+            query = query.where(Project.owner_id == current_owner_id)
+        result = await self.db.execute(query)
         project = result.scalar_one_or_none()
         
         if not project:
@@ -160,12 +163,10 @@ class ProjectService:
 
     async def delete_project(self, project_id: int, user_id: int) -> bool:
         """Удаление проекта (только владельцем)"""
-        result = await self.db.execute(
-            select(Project).where(
-                Project.id == project_id,
-                Project.owner_id == user_id
-            )
-        )
+        query = select(Project).where(Project.id == project_id)
+        if not self.is_admin:
+            query = query.where(Project.owner_id == user_id)
+        result = await self.db.execute(query)
         project = result.scalar_one_or_none()
         
         if not project:
@@ -181,11 +182,9 @@ class ProjectService:
 
     async def get_all_projects(self, skip: int = 0, limit: int = 100) -> ProjectListResponse:
         """Получение всех проектов (для администраторов)"""
-        # Получаем общее количество
-        count_result = await self.db.execute(select(Project))
-        total = len(count_result.scalars().all())
-        
-        # Получаем проекты с пагинацией
+        count_result = await self.db.execute(select(func.count(Project.id)))
+        total = count_result.scalar_one()
+
         result = await self.db.execute(
             select(Project)
             .offset(skip)

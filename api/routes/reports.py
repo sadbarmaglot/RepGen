@@ -19,7 +19,7 @@ async def generate_defects_report(
 ):
     """Генерация отчёта «Ведомость дефектов и повреждений №2» в формате DOCX"""
     try:
-        service = ReportService(db)
+        service = ReportService(db, is_admin=current_user.is_admin)
         download_url = await service.generate_defects_report(object_id, current_user.id)
         return {"download_url": download_url, "expires_in": 3600}
     except ValueError as e:
