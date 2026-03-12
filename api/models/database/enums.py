@@ -78,6 +78,23 @@ class DefectType(enum.Enum):
     finishing_loss = "finishing_loss"
     structural_absence = "structural_absence"
     pitting_corrosion = "pitting_corrosion"
+    weld_seam_corrosion = "weld_seam_corrosion"
+    weld_seam_shape_defect = "weld_seam_shape_defect"
+    weld_seam_lack_of_fusion = "weld_seam_lack_of_fusion"
+    weld_seam_leg_deviation = "weld_seam_leg_deviation"
+    weld_seam_porosity = "weld_seam_porosity"
+    weld_seam_burn_through = "weld_seam_burn_through"
+    weld_seam_cracks = "weld_seam_cracks"
+    bolt_corrosion = "bolt_corrosion"
+    bolt_deformation = "bolt_deformation"
+    bolt_gap = "bolt_gap"
+    bolt_incomplete_set = "bolt_incomplete_set"
+    bolt_grade_deviation = "bolt_grade_deviation"
+    bolt_nut_loosening = "bolt_nut_loosening"
+    bolt_missing = "bolt_missing"
+    bolt_flange_misalignment = "bolt_flange_misalignment"
+    bolt_shear = "bolt_shear"
+    bolt_flange_thickness_diff = "bolt_flange_thickness_diff"
 
 
 class DefectCategory(enum.Enum):
