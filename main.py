@@ -8,7 +8,9 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, StateFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from datetime import datetime
@@ -78,6 +80,16 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # User logging middleware
 app.add_middleware(UserLoggingMiddleware)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(
+        f"Validation error on {request.method} {request.url.path}: {exc.errors()}"
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
 app.include_router(auth_router)
 app.include_router(users_router)
