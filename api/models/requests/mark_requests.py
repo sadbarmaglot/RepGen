@@ -1,7 +1,17 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from decimal import Decimal
 from ..database.enums import MarkType, MarkVolumeUnit, DefectType
+
+# Маппинг устаревших значений defect_type на актуальные
+LEGACY_DEFECT_TYPE_MAP = {
+    "non_project_holes": "through_hole",
+}
+
+def _migrate_legacy_defect_type(v):
+    if isinstance(v, str) and v in LEGACY_DEFECT_TYPE_MAP:
+        return LEGACY_DEFECT_TYPE_MAP[v]
+    return v
 
 class MarkCreateRequest(BaseModel):
     """Запрос на создание отметки"""
@@ -16,6 +26,11 @@ class MarkCreateRequest(BaseModel):
     defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Единица измерения объема дефекта")
     defect_type: Optional[DefectType] = Field(None, description="Тип дефекта")
 
+    @field_validator("defect_type", mode="before")
+    @classmethod
+    def migrate_defect_type(cls, v):
+        return _migrate_legacy_defect_type(v)
+
 class MarkUpdateRequest(BaseModel):
     """Запрос на обновление отметки"""
     name: Optional[str] = Field(None, max_length=500, description="Новое название отметки")
@@ -27,3 +42,8 @@ class MarkUpdateRequest(BaseModel):
     defect_volume_value: Optional[Decimal] = Field(None, ge=0, description="Новое значение объема дефекта")
     defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Новая единица измерения объема дефекта")
     defect_type: Optional[DefectType] = Field(None, description="Новый тип дефекта")
+
+    @field_validator("defect_type", mode="before")
+    @classmethod
+    def migrate_defect_type(cls, v):
+        return _migrate_legacy_defect_type(v)
