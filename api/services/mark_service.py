@@ -151,11 +151,12 @@ class MarkService:
             mark.y = mark_data.y
         if mark_data.is_horizontal is not None:
             mark.is_horizontal = mark_data.is_horizontal
-        if mark_data.defect_volume_value is not None:
+        # Поля, которые можно обнулять (null = сброс значения)
+        if "defect_volume_value" in mark_data.model_fields_set:
             mark.defect_volume_value = mark_data.defect_volume_value
-        if mark_data.defect_volume_unit is not None:
+        if "defect_volume_unit" in mark_data.model_fields_set:
             mark.defect_volume_unit = mark_data.defect_volume_unit
-        if mark_data.defect_type is not None:
+        if "defect_type" in mark_data.model_fields_set:
             mark.defect_type = mark_data.defect_type
         
         try:
