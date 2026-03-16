@@ -9,7 +9,7 @@ from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from common.gc_utils import upload_to_gcs, create_signed_url, upload_to_gcs_with_blob
+from common.gc_utils import images_storage
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ register_heif_opener()
 
 class FileUploadService:
     """Сервис для загрузки файлов в GCP Cloud Storage"""
-    
+
     _HEIC_EXTENSIONS = {'.heic', '.heif'}
 
     def __init__(self):
@@ -118,69 +118,6 @@ class FileUploadService:
         logger.warning("Could not compress %s below %s bytes", filename, max_bytes)
         return content, file_extension
 
-    async def upload_file(
-        self, 
-        file: UploadFile, 
-        create_signed_url_flag: bool = False, 
-        expiration_minutes: int = 60
-        ) -> dict:
-        """
-        Загружает файл в GCP Cloud Storage
-        
-        Args:
-            file: Загружаемый файл
-            create_signed_url_flag: Создавать ли подписной URL для Gemini Pro
-            expiration_minutes: Время жизни подписного URL в минутах
-            
-        Returns:
-            Tuple[str, str, str]: (имя файла, публичный URL, подписной URL)
-        """
-        try:
-            file_extension = os.path.splitext(file.filename)[1].lower()
-            
-            if file.size and file.size > self.max_file_size:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Файл слишком большой. Максимальный размер: {self.max_file_size // (1024*1024)}MB"
-                )
-            
-            content = await file.read()
-
-            if file_extension in self._HEIC_EXTENSIONS:
-                content, file_extension = self._convert_heic_to_jpeg(content, file.filename)
-
-            content, file_extension = self._maybe_compress(content, file.filename, file_extension)
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-                temp_file.write(content)
-                temp_file.flush()
-
-                try:
-                    blob, public_url = await upload_to_gcs(temp_file.name, file_extension[1:])
-                    
-                    result = {
-                        "filename": blob.name,
-                        "public_url": public_url,
-                        "signed_url": "",
-                        "mime_type": blob.content_type
-                    }
-
-                    if not create_signed_url_flag:
-                        logger.info(f"Файл {file.filename} успешно загружен в GCS: {public_url}")
-                        return result
-
-                    signed_url = await create_signed_url(blob.name, expiration_minutes)
-                    result["signed_url"] = signed_url
-                    logger.info(f"Файл {file.filename} успешно загружен в GCS с подписным URL для Gemini Pro: {signed_url}")
-                    return result
-                    
-                finally:
-                    os.unlink(temp_file.name)
-                    
-        except Exception as e:
-            logger.error(f"Ошибка при загрузке файла {file.filename}: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Ошибка при загрузке файла: {str(e)}")
-    
     async def _upload_file_to_gcs(
         self,
         file: UploadFile,
@@ -220,7 +157,7 @@ class FileUploadService:
                 temp_file.flush()
 
                 try:
-                    blob = await upload_to_gcs_with_blob(temp_file.name, file_extension[1:])
+                    blob = await images_storage.upload_from_file_blob_only(temp_file.name, file_extension[1:])
                     t_upload = _time.perf_counter()
 
                     logger.info(
@@ -235,55 +172,21 @@ class FileUploadService:
                     return {"image_name": blob.name}
                 finally:
                     os.unlink(temp_file.name)
-                    
+
         except Exception as e:
             logger.error(f"Ошибка при загрузке файла {file.filename}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Ошибка при загрузке файла: {str(e)}")
 
-    async def upload_multiple_files(
-        self, 
-        files: List[UploadFile], 
-        create_signed_urls_flag: bool = False, 
-        expiration_minutes: int = 60
-    ) -> List[dict]:
-        """
-        Загружает несколько файлов в GCP Cloud Storage
-        
-        Args:
-            files: Список загружаемых файлов
-            create_signed_urls: Создавать ли подписные URL для Gemini Pro
-            expiration_minutes: Время жизни подписных URL в минутах
-            
-        Returns:
-            List[Tuple[str, str, str]]: Список кортежей (имя файла, публичный URL, подписной URL)
-        """
-        if len(files) > 20:
-            raise HTTPException(
-                status_code=400,
-                detail="Максимальное количество файлов: 20"
-            )
-        
-        results = []
-        for file in files:
-            try:
-                result = await self.upload_file(file, create_signed_urls_flag, expiration_minutes)
-                results.append(result)
-            except Exception as e:
-                logger.error(f"Ошибка при загрузке файла {file.filename}: {str(e)}")
-                continue
-        
-        return results
-
     async def upload_multiple_files_with_blob(
-        self, 
+        self,
         files: List[UploadFile]
     ) -> List[dict]:
         """
-        Загружает несколько файлов в GCP Cloud Storage с blob
-        
+        Загружает несколько файлов в GCP Cloud Storage
+
         Args:
             files: Список загружаемых файлов
-            
+
         Returns:
             List[Dict]: Список имен файлов
         """
@@ -292,7 +195,7 @@ class FileUploadService:
                 status_code=400,
                 detail="Максимальное количество файлов: 20"
             )
-        
+
         results = []
         for file in files:
             try:

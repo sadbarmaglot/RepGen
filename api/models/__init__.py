@@ -27,9 +27,6 @@ from .requests import (
     # Photo requests
     PhotoCreateRequest,
     PhotoUpdateRequest,
-    # Upload requests
-    UploadRequest,
-    UploadResponse,
     # Construction requests
     ConstructionTypeRequest
 )
@@ -104,9 +101,6 @@ __all__ = [
     # Photo requests
     "PhotoCreateRequest",
     "PhotoUpdateRequest",
-    # Upload requests
-    "UploadRequest",
-    "UploadResponse",
     # Auth responses
     "UserResponse",
     "Token",

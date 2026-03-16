@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 
-from common.gc_utils import create_signed_url, delete_blob_by_name
+from common.gc_utils import images_storage
 from api.models.entities import Plan
 from api.models.entities import Object
 from api.models.requests import PlanCreateRequest, PlanUpdateRequest
@@ -141,7 +141,7 @@ class PlanService:
             await self.db.commit()
             
             if plan.image_name:
-                await delete_blob_by_name(plan.image_name)
+                await images_storage.delete(plan.image_name)
             
             return True
         except IntegrityError as e:
@@ -157,7 +157,7 @@ class PlanService:
                 if cached_url:
                     image_url = cached_url
                 else:
-                    image_url = await create_signed_url(plan.image_name, expiration_minutes=60)
+                    image_url = await images_storage.create_signed_url(plan.image_name, expiration_minutes=60)
                     await redis_service.cache_signed_url(plan.image_name, image_url, ttl_seconds=3000)
             except Exception as e:
                 print(f"Ошибка создания подписного URL для {plan.image_name}: {e}")

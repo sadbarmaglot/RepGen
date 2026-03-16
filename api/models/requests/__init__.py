@@ -31,8 +31,6 @@ from .photo_requests import (
     PhotoUpdateRequest
 )
 from .upload_requests import (
-    UploadRequest,
-    UploadResponse,
     FileUploadResponseWithBlob
 )
 from .construction_requests import (
@@ -59,6 +57,9 @@ from .web_requests import (
     WebClientCreate,
     WebClientUpdate,
     WebProjectAssign
+)
+from .document_review_requests import (
+    DocumentReviewRequest
 )
 
 __all__ = [
@@ -88,8 +89,6 @@ __all__ = [
     "PhotoCreateRequest",
     "PhotoUpdateRequest",
     # Upload requests
-    "UploadRequest",
-    "UploadResponse",
     "FileUploadResponseWithBlob",
     # Construction requests
     "ConstructionTypeRequest",
@@ -109,5 +108,7 @@ __all__ = [
     "WebUserLogin",
     "WebClientCreate",
     "WebClientUpdate",
-    "WebProjectAssign"
+    "WebProjectAssign",
+    # Document review requests
+    "DocumentReviewRequest"
 ]

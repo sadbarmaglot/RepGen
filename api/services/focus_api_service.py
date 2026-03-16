@@ -16,11 +16,7 @@ from fastapi import HTTPException
 from PIL import Image, ImageOps
 
 from settings import FOCUS_API_URL, FOCUS_API_KEY, FOCUS_API_SECRET
-from common.gc_utils import (
-    upload_file_to_gcs_with_signed_url,
-    create_signed_url,
-    upload_bytes_to_gcs,
-)
+from common.gc_utils import images_storage
 from common.logging_utils import get_user_logger
 
 logger = get_user_logger(__name__)
@@ -365,7 +361,7 @@ class FocusAPIService:
             image_name,
         )
 
-        signed_url = await create_signed_url(image_name)
+        signed_url = await images_storage.create_signed_url(image_name)
         payload = self._prepare_url_payload(signed_url, image_name)
 
         try:
@@ -473,8 +469,8 @@ class FocusAPIService:
                     resp.raise_for_status()
 
                     png_name = f"focus_plan_{uuid.uuid4()}.png"
-                    await upload_bytes_to_gcs(resp.content, png_name, "image/png")
-                    signed_url = await create_signed_url(
+                    await images_storage.upload_bytes(resp.content, png_name, "image/png")
+                    signed_url = await images_storage.create_signed_url(
                         png_name, content_type="image/png"
                     )
                     image_files.append(
@@ -493,10 +489,10 @@ class FocusAPIService:
                     resp.raise_for_status()
 
                     dxf_name = f"focus_plan_{uuid.uuid4()}.dxf"
-                    await upload_bytes_to_gcs(
+                    await images_storage.upload_bytes(
                         resp.content, dxf_name, "application/dxf"
                     )
-                    signed_url = await create_signed_url(
+                    signed_url = await images_storage.create_signed_url(
                         dxf_name, content_type="application/dxf"
                     )
                     dxf_files.append(
@@ -598,8 +594,8 @@ class FocusAPIService:
                     extension = file_ext.lstrip('.')
                     content_type = "image/jpeg"
                 
-                image_name, signed_url = await upload_file_to_gcs_with_signed_url(
-                    image_path, 
+                image_name, signed_url = await images_storage.upload_from_file_with_signed_url(
+                    image_path,
                     extension,
                     "focus_plan",
                     content_type
@@ -619,7 +615,7 @@ class FocusAPIService:
             dxf_urls = []
             t_upload_dxf = time.perf_counter()
             for dxf_path in dxf_files:
-                dxf_name, signed_url = await upload_file_to_gcs_with_signed_url(
+                dxf_name, signed_url = await images_storage.upload_from_file_with_signed_url(
                     dxf_path,
                     "dxf",
                     "focus_plan",

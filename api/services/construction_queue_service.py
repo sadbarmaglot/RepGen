@@ -9,7 +9,7 @@ from api.services.construction_analyzer import ConstructionAnalyzer
 from api.services.database import AsyncSessionLocal
 from api.services.model_manager import ModelManager
 from api.services.redis_service import redis_service
-from common.gc_utils import create_signed_url
+from common.gc_utils import images_storage
 from settings import CONSTRUCTION_QUEUE_MAX_CONCURRENT, CONSTRUCTION_QUEUE_MAX_SIZE
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ class ConstructionQueueService:
                     if cached_url:
                         image_url = cached_url
                     else:
-                        image_url = await create_signed_url(image_name, expiration_minutes=60)
+                        image_url = await images_storage.create_signed_url(image_name, expiration_minutes=60)
                         await redis_service.cache_signed_url(image_name, image_url, ttl_seconds=3000)
                     
                     # Определяем тип конструкции

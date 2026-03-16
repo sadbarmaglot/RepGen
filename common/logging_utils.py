@@ -98,4 +98,3 @@ def get_user_logger(name: str) -> logging.Logger:
 
 # Создаем глобальные логгеры
 api_logger = setup_user_logging()
-bot_logger = get_user_logger("telegram_bot")

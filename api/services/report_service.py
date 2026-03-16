@@ -15,7 +15,7 @@ from api.models.entities import Plan, Mark, Photo, PhotoDefectAnalysis
 from api.models.database.enums import MarkType
 from api.services.access_control_service import AccessControlService
 from api.services.redis_service import redis_service
-from common.gc_utils import upload_bytes_to_gcs, create_signed_url, download_file_from_gcs
+from common.gc_utils import images_storage
 from docx_generator.generate_defects_statement_2_report import generate_defects_statement_2_report
 
 logger = logging.getLogger(__name__)
@@ -129,10 +129,10 @@ class ReportService:
         # Загружаем в GCS
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         filename = f"reports/{object_id}/defects_{timestamp}.docx"
-        await upload_bytes_to_gcs(buffer.getvalue(), filename, content_type=DOCX_CONTENT_TYPE)
+        await images_storage.upload_bytes(buffer.getvalue(), filename, content_type=DOCX_CONTENT_TYPE)
 
         # Создаём signed URL
-        signed_url = await create_signed_url(filename, expiration_minutes=60, content_type=DOCX_CONTENT_TYPE)
+        signed_url = await images_storage.create_signed_url(filename, expiration_minutes=60, content_type=DOCX_CONTENT_TYPE)
 
         # Кешируем
         await redis_service.set(cache_key, signed_url, ttl_seconds=3600)
@@ -230,7 +230,7 @@ class ReportService:
         photo_bytes_map: dict[str, bytes] = {}
         for name in photo_names:
             try:
-                data, _ = await download_file_from_gcs(name)
+                data, _ = await images_storage.download(name)
                 photo_bytes_map[name] = data
             except Exception as e:
                 logger.warning(f"Не удалось скачать фото {name}: {e}")

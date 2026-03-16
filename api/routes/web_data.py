@@ -27,7 +27,7 @@ from api.models.responses import (
 )
 from api.models.database.enums import DefectCategory
 from api.dependencies.auth_dependencies import get_current_web_user
-from common.gc_utils import create_signed_url
+from common.gc_utils import images_storage
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ async def web_get_object_plans(
                 if cached:
                     image_url = cached
                 else:
-                    image_url = await create_signed_url(plan.image_name, expiration_minutes=60)
+                    image_url = await images_storage.create_signed_url(plan.image_name, expiration_minutes=60)
                     await redis_service.cache_signed_url(plan.image_name, image_url, ttl_seconds=3000)
             except Exception:
                 pass
@@ -170,7 +170,7 @@ async def web_get_plan_marks_with_photos(
                 if cached:
                     image_url = cached
                 else:
-                    image_url = await create_signed_url(photo.image_name, expiration_minutes=60)
+                    image_url = await images_storage.create_signed_url(photo.image_name, expiration_minutes=60)
                     await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
             except Exception:
                 pass

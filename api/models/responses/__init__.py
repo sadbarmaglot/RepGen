@@ -67,6 +67,10 @@ from .web_responses import (
     WebClientListResponse,
     WebProjectAccessResponse
 )
+from .document_review_responses import (
+    DocumentUploadResponse,
+    DocumentReviewResponse
+)
 
 __all__ = [
     # Auth responses
@@ -123,5 +127,8 @@ __all__ = [
     "WebTokenRefreshResponse",
     "WebClientCreatedResponse",
     "WebClientListResponse",
-    "WebProjectAccessResponse"
+    "WebProjectAccessResponse",
+    # Document review responses
+    "DocumentUploadResponse",
+    "DocumentReviewResponse"
 ]

@@ -3,7 +3,7 @@ import logging
 
 from api.services.model_manager import ModelManager
 from api.models.config import DefectResult, AnalysisConfig, ImageInfo
-from common.gc_utils import create_signed_url
+from common.gc_utils import images_storage
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
@@ -118,7 +118,7 @@ class DefectAnalyzer:
         """
         try:
             # Создаем подписной URL для изображения
-            signed_url = await create_signed_url(image_name, expiration_minutes=60)
+            signed_url = await images_storage.create_signed_url(image_name, expiration_minutes=60)
             
             # Определяем MIME тип по расширению файла
             if image_name.lower().endswith('.png'):

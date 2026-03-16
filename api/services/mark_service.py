@@ -15,7 +15,7 @@ from api.models.responses import (
     PhotoResponse
 )
 from api.services.access_control_service import AccessControlService
-from common.gc_utils import create_signed_url
+from common.gc_utils import images_storage
 from api.services.redis_service import redis_service
 
 class MarkService:
@@ -360,7 +360,7 @@ class MarkService:
                     image_url = cached_url
                 else:
                     # Если нет в кэше, создаем новый подписанный URL
-                    image_url = await create_signed_url(photo.image_name, expiration_minutes=60)
+                    image_url = await images_storage.create_signed_url(photo.image_name, expiration_minutes=60)
                     await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
             except Exception:
                 # Тихо обрабатываем ошибку (файл не существует или Redis недоступен)

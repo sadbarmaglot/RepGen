@@ -36,3 +36,6 @@ Thumbs.db
 # Local config
 whitelist.json
 CLAUDE.md
+
+# Reference docs (ГОСТы, СП)
+reference_docs/
