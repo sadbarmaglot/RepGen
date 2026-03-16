@@ -8,6 +8,7 @@ services:
         hard: 65536
     volumes:
       - ./secrets:/app/secrets:ro
+      - ./reference_docs:/app/reference_docs:ro
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/autogen-1-438415-c7daf6f82696.json
       - SQL_USER=${SQL_USER}
