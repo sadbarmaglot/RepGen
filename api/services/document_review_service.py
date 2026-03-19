@@ -16,7 +16,7 @@ ALLOWED_EXTENSIONS = {".docx", ".pdf"}
 MAX_DOCUMENT_SIZE = 100 * 1024 * 1024  # 100 MB
 
 REVIEW_MODEL = "gpt-5.2"
-REVIEW_MAX_TOKENS = 16384
+REVIEW_MAX_TOKENS = 32768
 REVIEW_TEMPERATURE = 0.2
 
 REFERENCE_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "reference_docs"
