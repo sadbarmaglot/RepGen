@@ -21,6 +21,33 @@ REVIEW_TEMPERATURE = 0.2
 
 REFERENCE_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "reference_docs"
 
+REVIEW_PASSES = [
+    (
+        "🔴 КРИТ — влияет на юридическую силу (адрес, заказчик, уровень ответственности, даты)\n"
+        "🟠 ЛОГИКА — внутренние противоречия, несогласованность разделов"
+    ),
+    (
+        "🟡 ШАБЛОН — остатки чужих данных, повторы\n"
+        "🔵 ТЕКСТ — орфография, пунктуация, грамматика"
+    ),
+    (
+        "🟢 НОРМАТИВ — ошибки в ссылках на НТД\n"
+        "⚪️ РЕКОМЕНДАЦИЯ — не ошибка, но стоит усилить"
+    ),
+]
+
+MERGE_SYSTEM_PROMPT = """\
+Ты объединяешь результаты нескольких проходов проверки технического отчёта в единый список.
+
+Правила:
+1. Удали дубликаты — одно и то же замечание, даже если сформулировано иначе.
+2. Пронумеруй замечания последовательно.
+3. Сохрани оригинальные формулировки замечаний.
+4. В конце — итоговая строка:
+Всего замечаний: 🔴 _ / 🟠 _ / 🟡 _ / 🔵 _ / 🟢 _ / ⚪️ _
+Если замечаний в категории нет — категорию не выводить.\
+"""
+
 SYSTEM_PROMPT = """\
 РОЛЬ И ГРАНИЦЫ
 Ты — внутренний технический контролёр компании, выполняющей обследование зданий \
@@ -204,7 +231,7 @@ class DocumentReviewService:
     # ── LLM ───────────────────────────────────────────────────────
 
     async def _run_llm_review(self, text: str, prompt: Optional[str] = None) -> str:
-        """Отправляет текст отчёта на проверку LLM."""
+        """Запускает параллельные фокусированные проходы и объединяет результаты."""
         reference = self._load_reference_texts()
 
         user_parts: list[str] = []
@@ -219,13 +246,31 @@ class DocumentReviewService:
         if prompt:
             user_parts.append("ДОПОЛНИТЕЛЬНЫЕ УКАЗАНИЯ:\n\n" + prompt)
 
-        user_message = "\n\n---\n\n".join(user_parts)
+        base_user_message = "\n\n---\n\n".join(user_parts)
 
         logger.info(
-            "Отправка на LLM-проверку: %d символов текста, %d символов reference, модель %s",
+            "Запуск %d параллельных проходов: %d символов текста, %d символов reference, модель %s",
+            len(REVIEW_PASSES),
             len(text),
             len(reference),
             REVIEW_MODEL,
+        )
+
+        tasks = [
+            self._run_single_pass(base_user_message, focus)
+            for focus in REVIEW_PASSES
+        ]
+        pass_results = await asyncio.gather(*tasks)
+
+        return await self._merge_results(pass_results)
+
+    async def _run_single_pass(self, user_message: str, focus_categories: str) -> str:
+        """Один фокусированный проход проверки."""
+        focused_message = (
+            f"{user_message}\n\n---\n\n"
+            f"ФОКУС ЭТОГО ПРОХОДА:\n"
+            f"Проверяй ТОЛЬКО следующие категории:\n{focus_categories}\n"
+            f"Не выдавай замечания других категорий."
         )
 
         try:
@@ -234,7 +279,7 @@ class DocumentReviewService:
                 model=REVIEW_MODEL,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_message},
+                    {"role": "user", "content": focused_message},
                 ],
                 temperature=REVIEW_TEMPERATURE,
                 max_completion_tokens=REVIEW_MAX_TOKENS,
@@ -242,7 +287,7 @@ class DocumentReviewService:
 
             result = response.choices[0].message.content
             logger.info(
-                "LLM-проверка завершена: %d символов ответа, tokens: %s/%s",
+                "Проход завершён: %d символов, tokens: %s/%s",
                 len(result),
                 response.usage.prompt_tokens,
                 response.usage.completion_tokens,
@@ -250,5 +295,37 @@ class DocumentReviewService:
             return result
 
         except Exception as e:
-            logger.error("Ошибка LLM-проверки: %s", e)
+            logger.error("Ошибка прохода LLM: %s", e)
+            raise
+
+    async def _merge_results(self, pass_results: list[str]) -> str:
+        """Объединяет результаты проходов, удаляя дубликаты."""
+        combined = "\n\n".join(
+            f"--- Проход {i + 1} ---\n{result}"
+            for i, result in enumerate(pass_results)
+        )
+
+        try:
+            response = await asyncio.to_thread(
+                self.openai_client.chat.completions.create,
+                model=REVIEW_MODEL,
+                messages=[
+                    {"role": "system", "content": MERGE_SYSTEM_PROMPT},
+                    {"role": "user", "content": combined},
+                ],
+                temperature=REVIEW_TEMPERATURE,
+                max_completion_tokens=REVIEW_MAX_TOKENS,
+            )
+
+            result = response.choices[0].message.content
+            logger.info(
+                "Объединение завершено: %d символов, tokens: %s/%s",
+                len(result),
+                response.usage.prompt_tokens,
+                response.usage.completion_tokens,
+            )
+            return result
+
+        except Exception as e:
+            logger.error("Ошибка объединения результатов: %s", e)
             raise
