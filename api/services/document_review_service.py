@@ -48,7 +48,7 @@ MERGE_SYSTEM_PROMPT = """\
 Каждое замечание — строго по шаблону:
 
 [Категория] № [номер]
-Где: раздел / страница / абзац
+Где: страница / раздел / абзац
 Что не так: конкретное описание ошибки
 Как исправить: конкретное действие
 
@@ -114,7 +114,7 @@ SYSTEM_PROMPT = """\
 Выдавай пронумерованный список замечаний. Каждое замечание — по шаблону:
 
 [Категория] № [номер]
-Где: раздел / страница / абзац
+Где: страница (из маркеров [Страница N] в тексте) / раздел / абзац
 Что не так: конкретное описание ошибки
 Как исправить: конкретное действие
 
@@ -188,12 +188,31 @@ class DocumentReviewService:
     # ── Парсинг ───────────────────────────────────────────────────
 
     @staticmethod
+    def _has_page_break(paragraph) -> bool:
+        """Проверяет наличие разрыва страницы в параграфе."""
+        for run in paragraph.runs:
+            br_elements = run._element.findall(
+                ".//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}br"
+            )
+            for br in br_elements:
+                if br.get(
+                    "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}type"
+                ) == "page":
+                    return True
+        return False
+
+    @staticmethod
     def _parse_docx(file_bytes: bytes) -> str:
         doc = DocxDocument(io.BytesIO(file_bytes))
 
         parts: list[str] = []
+        page_num = 1
+        parts.append(f"[Страница {page_num}]")
 
         for paragraph in doc.paragraphs:
+            if DocumentReviewService._has_page_break(paragraph):
+                page_num += 1
+                parts.append(f"\n[Страница {page_num}]")
             text = paragraph.text.strip()
             if text:
                 parts.append(text)
@@ -211,10 +230,10 @@ class DocumentReviewService:
         doc = pymupdf.open(stream=file_bytes, filetype="pdf")
         parts: list[str] = []
 
-        for page in doc:
+        for page_num, page in enumerate(doc, start=1):
             text = page.get_text().strip()
             if text:
-                parts.append(text)
+                parts.append(f"[Страница {page_num}]\n{text}")
 
         doc.close()
         return "\n".join(parts)
