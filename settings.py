@@ -7,7 +7,7 @@ load_dotenv()
 BUCKET_NAME = "repgen_images"
 DOCUMENTS_BUCKET_NAME = os.environ.get("DOCUMENTS_BUCKET_NAME", "repgen_documents")
 PROJECT_ID = os.environ.get("PROJECT_ID")
-LOCATION = "us-central1"
+LOCATION = os.environ.get("LOCATION", "global")
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
