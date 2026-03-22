@@ -76,3 +76,12 @@ async def review_document(
         raise HTTPException(status_code=404, detail="Документ не найден в хранилище")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        err_msg = str(e)
+        if "context_length_exceeded" in err_msg or "token" in err_msg.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Документ слишком большой для выбранной модели: {err_msg}",
+            )
+        logger.error("Ошибка проверки документа: %s", e)
+        raise HTTPException(status_code=500, detail=f"Ошибка проверки: {err_msg}")
