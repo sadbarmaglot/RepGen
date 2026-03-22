@@ -78,10 +78,16 @@ async def review_document(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         err_msg = str(e)
-        if "context_length_exceeded" in err_msg or "token" in err_msg.lower():
+        lower_msg = err_msg.lower()
+        if "context_length_exceeded" in err_msg or "token" in lower_msg:
             raise HTTPException(
                 status_code=400,
-                detail=f"Документ слишком большой для выбранной модели: {err_msg}",
+                detail="Документ слишком большой для выбранной модели.",
+            )
+        if "429" in err_msg or "rate_limit" in lower_msg or "resource_exhausted" in lower_msg:
+            raise HTTPException(
+                status_code=429,
+                detail="Слишком много запросов к модели. Подождите минуту и попробуйте снова.",
             )
         logger.error("Ошибка проверки документа: %s", e)
         raise HTTPException(status_code=500, detail=f"Ошибка проверки: {err_msg}")

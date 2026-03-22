@@ -398,14 +398,19 @@ class DocumentReviewService:
         self, model: str, system_prompt: str, user_message: str,
     ) -> str:
         client = self._get_anthropic_client()
-        response = await asyncio.to_thread(
-            client.messages.create,
-            model=model,
-            max_tokens=REVIEW_MAX_TOKENS,
-            temperature=REVIEW_TEMPERATURE,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_message}],
-        )
+
+        def _stream_anthropic():
+            with client.messages.stream(
+                model=model,
+                max_tokens=REVIEW_MAX_TOKENS,
+                temperature=REVIEW_TEMPERATURE,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+            ) as stream:
+                response = stream.get_final_message()
+            return response
+
+        response = await asyncio.to_thread(_stream_anthropic)
         logger.info(
             "Anthropic [%s]: tokens %s/%s",
             model, response.usage.input_tokens, response.usage.output_tokens,
