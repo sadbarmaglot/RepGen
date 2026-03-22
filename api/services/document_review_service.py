@@ -384,6 +384,9 @@ class DocumentReviewService:
                 system_instruction=system_prompt,
                 temperature=REVIEW_TEMPERATURE,
                 max_output_tokens=REVIEW_MAX_TOKENS,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                    disable=True,
+                ),
             ),
         )
         logger.info(
