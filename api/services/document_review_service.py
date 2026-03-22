@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {".docx", ".pdf"}
 MAX_DOCUMENT_SIZE = 100 * 1024 * 1024  # 100 MB
 
-REVIEW_MODEL = "gpt-5.2"
+REVIEW_MODEL = "gpt-5.4"
 REVIEW_MAX_TOKENS = 32768
 REVIEW_TEMPERATURE = 0.2
 
