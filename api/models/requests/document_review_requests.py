@@ -10,3 +10,7 @@ class DocumentReviewRequest(BaseModel):
         default=None,
         description="Дополнительный промпт для LLM-проверки",
     )
+    model: Optional[str] = Field(
+        default=None,
+        description="Модель для проверки (например gpt-5.4, gemini-2.5-pro, claude-sonnet-4.6)",
+    )

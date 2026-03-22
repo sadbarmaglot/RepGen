@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 
 from docx import Document as DocxDocument
-from openai import OpenAI
 import pymupdf
 
 from common.gc_utils import documents_storage
@@ -15,9 +14,18 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {".docx", ".pdf"}
 MAX_DOCUMENT_SIZE = 100 * 1024 * 1024  # 100 MB
 
-REVIEW_MODEL = "gpt-5.4"
+DEFAULT_MODEL = "gpt-5.4"
 REVIEW_MAX_TOKENS = 32768
 REVIEW_TEMPERATURE = 0.2
+
+AVAILABLE_MODELS = {
+    "gpt-5.4": {"provider": "openai", "label": "GPT-5.4"},
+    "gpt-5.4-mini": {"provider": "openai", "label": "GPT-5.4 Mini"},
+    "gemini-2.5-pro": {"provider": "gemini", "label": "Gemini 2.5 Pro"},
+    "gemini-2.5-flash": {"provider": "gemini", "label": "Gemini 2.5 Flash"},
+    "claude-opus-4-6": {"provider": "anthropic", "label": "Claude Opus 4.6"},
+    "claude-sonnet-4-6": {"provider": "anthropic", "label": "Claude Sonnet 4.6"},
+}
 
 REFERENCE_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "reference_docs"
 
@@ -139,14 +147,31 @@ class DocumentReviewService:
     """Сервис для парсинга и проверки технических отчётов."""
 
     def __init__(self):
-        self._openai_client: Optional[OpenAI] = None
+        self._openai_client = None
+        self._gemini_client = None
+        self._anthropic_client = None
         self._reference_texts: Optional[str] = None
 
-    @property
-    def openai_client(self) -> OpenAI:
+    def _get_openai_client(self):
         if self._openai_client is None:
+            from openai import OpenAI
             self._openai_client = OpenAI()
         return self._openai_client
+
+    def _get_gemini_client(self):
+        if self._gemini_client is None:
+            from google import genai
+            from settings import PROJECT_ID, LOCATION
+            self._gemini_client = genai.Client(
+                vertexai=True, project=PROJECT_ID, location=LOCATION,
+            )
+        return self._gemini_client
+
+    def _get_anthropic_client(self):
+        if self._anthropic_client is None:
+            import anthropic
+            self._anthropic_client = anthropic.Anthropic()
+        return self._anthropic_client
 
     async def parse_document(self, document_name: str) -> str:
         """Скачивает документ из GCS и извлекает текст."""
@@ -166,8 +191,16 @@ class DocumentReviewService:
         self,
         document_name: str,
         prompt: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> dict:
         """Парсит документ и отправляет текст на проверку LLM."""
+        model = model or DEFAULT_MODEL
+        if model not in AVAILABLE_MODELS:
+            raise ValueError(
+                f"Неподдерживаемая модель: {model}. "
+                f"Доступные: {', '.join(AVAILABLE_MODELS)}"
+            )
+
         text = await self.parse_document(document_name)
 
         if not text.strip():
@@ -177,7 +210,7 @@ class DocumentReviewService:
                 "review_result": "Документ пуст или не содержит текста.",
             }
 
-        review_result = await self._run_llm_review(text, prompt)
+        review_result = await self._run_llm_review(text, prompt, model)
 
         return {
             "document_name": document_name,
@@ -266,7 +299,9 @@ class DocumentReviewService:
 
     # ── LLM ───────────────────────────────────────────────────────
 
-    async def _run_llm_review(self, text: str, prompt: Optional[str] = None) -> str:
+    async def _run_llm_review(
+        self, text: str, prompt: Optional[str] = None, model: str = DEFAULT_MODEL,
+    ) -> str:
         """Запускает параллельные фокусированные проходы и объединяет результаты."""
         reference = self._load_reference_texts()
 
@@ -289,18 +324,97 @@ class DocumentReviewService:
             len(REVIEW_PASSES),
             len(text),
             len(reference),
-            REVIEW_MODEL,
+            model,
         )
 
         tasks = [
-            self._run_single_pass(base_user_message, focus)
+            self._run_single_pass(base_user_message, focus, model)
             for focus in REVIEW_PASSES
         ]
         pass_results = await asyncio.gather(*tasks)
 
-        return await self._merge_results(pass_results)
+        return await self._merge_results(pass_results, model)
 
-    async def _run_single_pass(self, user_message: str, focus_categories: str) -> str:
+    async def _call_llm(
+        self, model: str, system_prompt: str, user_message: str,
+    ) -> str:
+        """Единая точка вызова LLM — роутит на нужный провайдер."""
+        provider = AVAILABLE_MODELS[model]["provider"]
+
+        if provider == "openai":
+            return await self._call_openai(model, system_prompt, user_message)
+        elif provider == "gemini":
+            return await self._call_gemini(model, system_prompt, user_message)
+        elif provider == "anthropic":
+            return await self._call_anthropic(model, system_prompt, user_message)
+        else:
+            raise ValueError(f"Неизвестный провайдер: {provider}")
+
+    async def _call_openai(
+        self, model: str, system_prompt: str, user_message: str,
+    ) -> str:
+        client = self._get_openai_client()
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=REVIEW_TEMPERATURE,
+            max_completion_tokens=REVIEW_MAX_TOKENS,
+        )
+        logger.info(
+            "OpenAI [%s]: tokens %s/%s",
+            model, response.usage.prompt_tokens, response.usage.completion_tokens,
+        )
+        return response.choices[0].message.content
+
+    async def _call_gemini(
+        self, model: str, system_prompt: str, user_message: str,
+    ) -> str:
+        from google.genai import types
+
+        client = self._get_gemini_client()
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=model,
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=REVIEW_TEMPERATURE,
+                max_output_tokens=REVIEW_MAX_TOKENS,
+            ),
+        )
+        logger.info(
+            "Gemini [%s]: tokens %s/%s",
+            model,
+            response.usage_metadata.prompt_token_count,
+            response.usage_metadata.candidates_token_count,
+        )
+        return response.text
+
+    async def _call_anthropic(
+        self, model: str, system_prompt: str, user_message: str,
+    ) -> str:
+        client = self._get_anthropic_client()
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=model,
+            max_tokens=REVIEW_MAX_TOKENS,
+            temperature=REVIEW_TEMPERATURE,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        logger.info(
+            "Anthropic [%s]: tokens %s/%s",
+            model, response.usage.input_tokens, response.usage.output_tokens,
+        )
+        return response.content[0].text
+
+    async def _run_single_pass(
+        self, user_message: str, focus_categories: str, model: str,
+    ) -> str:
         """Один фокусированный проход проверки."""
         focused_message = (
             f"{user_message}\n\n---\n\n"
@@ -310,31 +424,14 @@ class DocumentReviewService:
         )
 
         try:
-            response = await asyncio.to_thread(
-                self.openai_client.chat.completions.create,
-                model=REVIEW_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": focused_message},
-                ],
-                temperature=REVIEW_TEMPERATURE,
-                max_completion_tokens=REVIEW_MAX_TOKENS,
-            )
-
-            result = response.choices[0].message.content
-            logger.info(
-                "Проход завершён: %d символов, tokens: %s/%s",
-                len(result),
-                response.usage.prompt_tokens,
-                response.usage.completion_tokens,
-            )
+            result = await self._call_llm(model, SYSTEM_PROMPT, focused_message)
+            logger.info("Проход завершён: %d символов", len(result))
             return result
-
         except Exception as e:
             logger.error("Ошибка прохода LLM: %s", e)
             raise
 
-    async def _merge_results(self, pass_results: list[str]) -> str:
+    async def _merge_results(self, pass_results: list[str], model: str) -> str:
         """Объединяет результаты проходов, удаляя дубликаты."""
         combined = "\n\n".join(
             f"--- Проход {i + 1} ---\n{result}"
@@ -342,26 +439,9 @@ class DocumentReviewService:
         )
 
         try:
-            response = await asyncio.to_thread(
-                self.openai_client.chat.completions.create,
-                model=REVIEW_MODEL,
-                messages=[
-                    {"role": "system", "content": MERGE_SYSTEM_PROMPT},
-                    {"role": "user", "content": combined},
-                ],
-                temperature=REVIEW_TEMPERATURE,
-                max_completion_tokens=REVIEW_MAX_TOKENS,
-            )
-
-            result = response.choices[0].message.content
-            logger.info(
-                "Объединение завершено: %d символов, tokens: %s/%s",
-                len(result),
-                response.usage.prompt_tokens,
-                response.usage.completion_tokens,
-            )
+            result = await self._call_llm(model, MERGE_SYSTEM_PROMPT, combined)
+            logger.info("Объединение завершено: %d символов", len(result))
             return result
-
         except Exception as e:
             logger.error("Ошибка объединения результатов: %s", e)
             raise

@@ -12,6 +12,7 @@ httpx==0.28.1
 requests==2.31.0
 
 openai==1.97.1
+anthropic==0.86.0
 
 google-cloud-storage==3.3.0
 google-genai==1.31.0

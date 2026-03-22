@@ -69,6 +69,7 @@ async def review_document(
         result = await document_review_service.review_document(
             document_name=request.document_name,
             prompt=request.prompt,
+            model=request.model,
         )
         return DocumentReviewResponse(**result)
     except FileNotFoundError:
