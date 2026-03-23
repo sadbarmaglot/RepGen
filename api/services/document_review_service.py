@@ -23,8 +23,6 @@ AVAILABLE_MODELS = {
     "gpt-5.4-mini": {"provider": "openai", "label": "GPT-5.4 Mini"},
     "gemini-2.5-pro": {"provider": "gemini", "label": "Gemini 2.5 Pro"},
     "gemini-2.5-flash": {"provider": "gemini", "label": "Gemini 2.5 Flash"},
-    "claude-opus-4-6": {"provider": "anthropic", "label": "Claude Opus 4.6"},
-    "claude-sonnet-4-6": {"provider": "anthropic", "label": "Claude Sonnet 4.6"},
 }
 
 REFERENCE_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "reference_docs"
@@ -149,7 +147,6 @@ class DocumentReviewService:
     def __init__(self):
         self._openai_client = None
         self._gemini_client = None
-        self._anthropic_client = None
         self._reference_texts: Optional[str] = None
 
     def _get_openai_client(self):
@@ -166,12 +163,6 @@ class DocumentReviewService:
                 vertexai=True, project=PROJECT_ID, location=LOCATION,
             )
         return self._gemini_client
-
-    def _get_anthropic_client(self):
-        if self._anthropic_client is None:
-            import anthropic
-            self._anthropic_client = anthropic.Anthropic()
-        return self._anthropic_client
 
     async def parse_document(self, document_name: str) -> str:
         """Скачивает документ из GCS и извлекает текст."""
@@ -319,19 +310,29 @@ class DocumentReviewService:
 
         base_user_message = "\n\n---\n\n".join(user_parts)
 
+        provider = AVAILABLE_MODELS[model]["provider"]
+        sequential = provider == "gemini"
+
         logger.info(
-            "Запуск %d параллельных проходов: %d символов текста, %d символов reference, модель %s",
+            "Запуск %d %s проходов: %d символов текста, %d символов reference, модель %s",
             len(REVIEW_PASSES),
+            "последовательных" if sequential else "параллельных",
             len(text),
             len(reference),
             model,
         )
 
-        tasks = [
-            self._run_single_pass(base_user_message, focus, model)
-            for focus in REVIEW_PASSES
-        ]
-        pass_results = await asyncio.gather(*tasks)
+        if sequential:
+            pass_results = []
+            for focus in REVIEW_PASSES:
+                result = await self._run_single_pass(base_user_message, focus, model)
+                pass_results.append(result)
+        else:
+            tasks = [
+                self._run_single_pass(base_user_message, focus, model)
+                for focus in REVIEW_PASSES
+            ]
+            pass_results = await asyncio.gather(*tasks)
 
         return await self._merge_results(pass_results, model)
 
@@ -345,8 +346,6 @@ class DocumentReviewService:
             return await self._call_openai(model, system_prompt, user_message)
         elif provider == "gemini":
             return await self._call_gemini(model, system_prompt, user_message)
-        elif provider == "anthropic":
-            return await self._call_anthropic(model, system_prompt, user_message)
         else:
             raise ValueError(f"Неизвестный провайдер: {provider}")
 
@@ -396,29 +395,6 @@ class DocumentReviewService:
             response.usage_metadata.candidates_token_count,
         )
         return response.text
-
-    async def _call_anthropic(
-        self, model: str, system_prompt: str, user_message: str,
-    ) -> str:
-        client = self._get_anthropic_client()
-
-        def _stream_anthropic():
-            with client.messages.stream(
-                model=model,
-                max_tokens=REVIEW_MAX_TOKENS,
-                temperature=REVIEW_TEMPERATURE,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_message}],
-            ) as stream:
-                response = stream.get_final_message()
-            return response
-
-        response = await asyncio.to_thread(_stream_anthropic)
-        logger.info(
-            "Anthropic [%s]: tokens %s/%s",
-            model, response.usage.input_tokens, response.usage.output_tokens,
-        )
-        return response.content[0].text
 
     async def _run_single_pass(
         self, user_message: str, focus_categories: str, model: str,
