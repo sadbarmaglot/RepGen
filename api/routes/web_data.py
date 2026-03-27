@@ -31,6 +31,8 @@ from common.gc_utils import images_storage
 
 logger = logging.getLogger(__name__)
 
+_redis_semaphore = asyncio.Semaphore(25)
+
 router = APIRouter(prefix="/web", tags=["web-data"])
 
 
@@ -166,12 +168,13 @@ async def web_get_plan_marks_with_photos(
         image_url = None
         if photo.image_name:
             try:
-                cached = await redis_service.get_signed_url(photo.image_name)
-                if cached:
-                    image_url = cached
-                else:
-                    image_url = await images_storage.create_signed_url(photo.image_name, expiration_minutes=60)
-                    await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
+                async with _redis_semaphore:
+                    cached = await redis_service.get_signed_url(photo.image_name)
+                    if cached:
+                        image_url = cached
+                    else:
+                        image_url = await images_storage.create_signed_url(photo.image_name, expiration_minutes=60)
+                        await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
             except Exception:
                 pass
         return PhotoResponse(

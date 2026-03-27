@@ -18,6 +18,9 @@ from api.services.access_control_service import AccessControlService
 from common.gc_utils import images_storage
 from api.services.redis_service import redis_service
 
+_redis_semaphore = asyncio.Semaphore(25)
+
+
 class MarkService:
     def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
@@ -354,14 +357,15 @@ class MarkService:
         image_url = None
         if photo.image_name:
             try:
-                # Сначала проверяем кэш Redis
-                cached_url = await redis_service.get_signed_url(photo.image_name)
-                if cached_url:
-                    image_url = cached_url
-                else:
-                    # Если нет в кэше, создаем новый подписанный URL
-                    image_url = await images_storage.create_signed_url(photo.image_name, expiration_minutes=60)
-                    await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
+                async with _redis_semaphore:
+                    # Сначала проверяем кэш Redis
+                    cached_url = await redis_service.get_signed_url(photo.image_name)
+                    if cached_url:
+                        image_url = cached_url
+                    else:
+                        # Если нет в кэше, создаем новый подписанный URL
+                        image_url = await images_storage.create_signed_url(photo.image_name, expiration_minutes=60)
+                        await redis_service.cache_signed_url(photo.image_name, image_url, ttl_seconds=3000)
             except Exception:
                 # Тихо обрабатываем ошибку (файл не существует или Redis недоступен)
                 # Не логируем, чтобы избежать спама в логах
