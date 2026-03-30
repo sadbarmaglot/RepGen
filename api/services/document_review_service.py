@@ -19,27 +19,97 @@ REVIEW_MAX_TOKENS = 32768
 REVIEW_TEMPERATURE = 0.2
 
 AVAILABLE_MODELS = {
-    "gpt-5.4": {"provider": "openai", "label": "GPT-5.4"},
-    "gpt-5.4-mini": {"provider": "openai", "label": "GPT-5.4 Mini"},
-    "gemini-2.5-pro": {"provider": "gemini", "label": "Gemini 2.5 Pro"},
-    "gemini-2.5-flash": {"provider": "gemini", "label": "Gemini 2.5 Flash"},
+    "gpt-5.4": {"label": "GPT-5.4"},
+    "gpt-5.4-mini": {"label": "GPT-5.4 Mini"},
 }
 
 REFERENCE_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "reference_docs"
 
+_ROLE_PREAMBLE = """\
+РОЛЬ И ГРАНИЦЫ
+Ты — внутренний технический контролёр компании, выполняющей обследование зданий \
+и сооружений различного назначения: промышленных, административных, жилых, \
+объектов культурного наследия.
+Твоя задача — выдать конкретный список замечаний, которые исполнитель может \
+взять и исправить. Каждое замечание должно быть сформулировано так, чтобы было \
+понятно: что не так, где находится, как исправить.
+Ты никогда не:
+- перепроверяешь инженерные расчёты
+- оцениваешь правильность технических решений
+- переписываешь текст целиком
+- додумываешь содержание отсутствующих разделов — фиксируешь их отсутствие как замечание
+
+Общий принцип: фиксируй только то, в чём уверен. Не уверен — не пиши."""
+
+_OUTPUT_FORMAT = """\
+ФОРМАТ ВЫДАЧИ
+Выдавай пронумерованный список замечаний. Каждое замечание — по шаблону:
+
+[Категория] № [номер]
+Где: страница (из маркеров [Страница N] в тексте) / раздел / абзац
+Что не так: конкретное описание ошибки
+Как исправить: конкретное действие
+
+ВАЖНО: Найди и выпиши ВСЕ замечания без исключения. Не сокращай список — \
+проверяй документ от начала до конца. Полнота проверки важнее краткости.\
+"""
+
 REVIEW_PASSES = [
-    (
-        "🔴 КРИТ — влияет на юридическую силу (адрес, заказчик, уровень ответственности, даты)\n"
-        "🟠 ЛОГИКА — внутренние противоречия, несогласованность разделов"
-    ),
-    (
-        "🟡 ШАБЛОН — остатки чужих данных, повторы\n"
-        "🔵 ТЕКСТ — орфография, пунктуация, грамматика"
-    ),
-    (
-        "🟢 НОРМАТИВ — ошибки в ссылках на НТД\n"
-        "⚪️ РЕКОМЕНДАЦИЯ — не ошибка, но стоит усилить"
-    ),
+    {
+        "needs_reference": False,
+        "system_prompt": (
+            f"{_ROLE_PREAMBLE}\n\n"
+            "КАТЕГОРИИ ЗАМЕЧАНИЙ\n"
+            "🔴 КРИТ — влияет на юридическую силу (адрес, заказчик, уровень ответственности, даты)\n"
+            "🟠 ЛОГИКА — внутренние противоречия, несогласованность разделов\n"
+            "⚪️ РЕКОМЕНДАЦИЯ — не ошибка, но стоит усилить (в области логики и критичных данных)\n\n"
+            "ТИПИЧНЫЕ ОШИБКИ (искать в первую очередь)\n"
+            "- Несовпадение адреса объекта в разных разделах\n"
+            "- Несовпадение дат (договор / выезд / утверждение)\n"
+            "- Противоречие в типе объекта: «здание» в одном месте, «фасады» в другом\n"
+            "- Несогласованность цепочки: Ведомость дефектов → Заключение → Рекомендации\n"
+            "- Категория технического состояния не вытекает из описанных дефектов\n\n"
+            f"{_OUTPUT_FORMAT}"
+        ),
+    },
+    {
+        "needs_reference": False,
+        "system_prompt": (
+            f"{_ROLE_PREAMBLE}\n\n"
+            "КАТЕГОРИИ ЗАМЕЧАНИЙ\n"
+            "🟡 ШАБЛОН — остатки чужих данных, повторы\n"
+            "🔵 ТЕКСТ — орфография, пунктуация, грамматика\n"
+            "⚪️ РЕКОМЕНДАЦИЯ — не ошибка, но стоит усилить (в области текста и оформления)\n\n"
+            "ТИПИЧНЫЕ ОШИБКИ (искать в первую очередь)\n"
+            "- Остатки данных от предыдущего объекта (заказчик, название, габариты)\n"
+            "- Разное написание одного термина по тексту\n\n"
+            f"{_OUTPUT_FORMAT}"
+        ),
+    },
+    {
+        "needs_reference": True,
+        "system_prompt": (
+            f"{_ROLE_PREAMBLE}\n\n"
+            "КАТЕГОРИИ ЗАМЕЧАНИЙ\n"
+            "🟢 НОРМАТИВ — ошибки в ссылках на НТД\n"
+            "⚪️ РЕКОМЕНДАЦИЯ — не ошибка, но стоит усилить (в области нормативных ссылок)\n\n"
+            "НОРМАТИВНАЯ БАЗА\n"
+            "Основные документы:\n"
+            "- ГОСТ 31937-2024 — обследование и мониторинг зданий и сооружений\n"
+            "- СП 13-102-2003 — обследование несущих строительных конструкций\n"
+            "- ГОСТ 27751-2011 — надёжность строительных конструкций, уровни ответственности\n"
+            "- ФЗ-384 — технический регламент, уровень ответственности\n"
+            "- Актуальные СП по конструктивным разделам (СП 20, СП 22, СП 63 и др.)\n\n"
+            "Ограничение: Проверяй только явные ошибки — например, ссылка на ГОСТ 31937-2011 "
+            "вместо актуального ГОСТ 31937-2024, отменённый СНиП вместо действующего СП, "
+            "неверный год редакции. В неочевидных случаях — пиши как рекомендацию. "
+            "Не уверен — не пиши.\n\n"
+            "ТИПИЧНЫЕ ОШИБКИ (искать в первую очередь)\n"
+            "- Ссылка на ГОСТ 31937-2011 вместо ГОСТ 31937-2024\n"
+            "- Ссылки на отменённые нормы без оговорок\n\n"
+            f"{_OUTPUT_FORMAT}"
+        ),
+    },
 ]
 
 MERGE_SYSTEM_PROMPT = """\
@@ -71,82 +141,12 @@ MERGE_SYSTEM_PROMPT = """\
 Если замечаний в категории нет — категорию не выводить.\
 """
 
-SYSTEM_PROMPT = """\
-РОЛЬ И ГРАНИЦЫ
-Ты — внутренний технический контролёр компании, выполняющей обследование зданий \
-и сооружений различного назначения: промышленных, административных, жилых, \
-объектов культурного наследия.
-Твоя задача — выдать конкретный список замечаний, которые исполнитель может \
-взять и исправить. Каждое замечание должно быть сформулировано так, чтобы было \
-понятно: что не так, где находится, как исправить.
-Ты никогда не:
-- перепроверяешь инженерные расчёты
-- оцениваешь правильность технических решений
-- переписываешь текст целиком
-- додумываешь содержание отсутствующих разделов — фиксируешь их отсутствие как замечание
-
-НОРМАТИВНАЯ БАЗА
-Основные документы:
-- ГОСТ 31937-2024 — обследование и мониторинг зданий и сооружений
-- СП 13-102-2003 — обследование несущих строительных конструкций
-- ГОСТ 27751-2011 — надёжность строительных конструкций, уровни ответственности
-- ФЗ-384 — технический регламент, уровень ответственности
-- Актуальные СП по конструктивным разделам (СП 20, СП 22, СП 63 и др.)
-
-Ограничение: Проверяй только явные ошибки — например, ссылка на ГОСТ 31937-2011 \
-вместо актуального ГОСТ 31937-2024, отменённый СНиП вместо действующего СП, \
-неверный год редакции. В неочевидных случаях — пиши как рекомендацию. \
-Не уверен — не пиши.
-
-ТИПИЧНЫЕ ОШИБКИ (искать в первую очередь)
-- Несовпадение адреса объекта в разных разделах
-- Несовпадение дат (договор / выезд / утверждение)
-- Остатки данных от предыдущего объекта (заказчик, название, габариты)
-- Противоречие в типе объекта: «здание» в одном месте, «фасады» в другом
-- Несогласованность цепочки: Ведомость дефектов → Заключение → Рекомендации
-- Категория технического состояния не вытекает из описанных дефектов
-- Разное написание одного термина по тексту
-- Ссылка на ГОСТ 31937-2011 вместо ГОСТ 31937-2024
-- Ссылки на отменённые нормы без оговорок
-
-ПРИОРИТЕТ ПРОВЕРКИ
-1. Орфография, пунктуация, грамматика
-2. Логика и внутренние несостыковки
-3. Остатки шаблона
-4. Нормативная база
-5. Рекомендации по усилению отчёта
-
-ФОРМАТ ВЫДАЧИ
-Выдавай пронумерованный список замечаний. Каждое замечание — по шаблону:
-
-[Категория] № [номер]
-Где: страница (из маркеров [Страница N] в тексте) / раздел / абзац
-Что не так: конкретное описание ошибки
-Как исправить: конкретное действие
-
-Категории замечаний:
-🔴 КРИТ — влияет на юридическую силу (адрес, заказчик, уровень ответственности, даты)
-🟠 ЛОГИКА — внутренние противоречия, несогласованность разделов
-🟡 ШАБЛОН — остатки чужих данных, повторы
-🔵 ТЕКСТ — орфография, пунктуация, грамматика
-🟢 НОРМАТИВ — ошибки в ссылках на НТД
-⚪️ РЕКОМЕНДАЦИЯ — не ошибка, но стоит усилить
-
-ВАЖНО: Найди и выпиши ВСЕ замечания без исключения. Не сокращай список — \
-проверяй документ от начала до конца. Полнота проверки важнее краткости.
-
-В конце — итоговая строка:
-Всего замечаний: 🔴 _ / 🟠 _ / 🟡 _ / 🔵 _ / 🟢 _ / ⚪️ _
-Если замечаний в категории нет — категорию не выводить.\
-"""
-
 
 class DocumentReviewService:
     """Сервис для парсинга и проверки технических отчётов."""
 
     def __init__(self):
         self._openai_client = None
-        self._gemini_client = None
         self._reference_texts: Optional[str] = None
 
     def _get_openai_client(self):
@@ -154,15 +154,6 @@ class DocumentReviewService:
             from openai import OpenAI
             self._openai_client = OpenAI()
         return self._openai_client
-
-    def _get_gemini_client(self):
-        if self._gemini_client is None:
-            from google import genai
-            from settings import PROJECT_ID, LOCATION
-            self._gemini_client = genai.Client(
-                vertexai=True, project=PROJECT_ID, location=LOCATION,
-            )
-        return self._gemini_client
 
     async def parse_document(self, document_name: str) -> str:
         """Скачивает документ из GCS и извлекает текст."""
@@ -296,62 +287,48 @@ class DocumentReviewService:
         """Запускает параллельные фокусированные проходы и объединяет результаты."""
         reference = self._load_reference_texts()
 
-        user_parts: list[str] = []
-
-        if reference:
-            user_parts.append(
-                "НОРМАТИВНЫЕ ДОКУМЕНТЫ ДЛЯ СПРАВКИ:\n\n" + reference
-            )
-
-        user_parts.append("ТЕКСТ ОТЧЁТА ДЛЯ ПРОВЕРКИ:\n\n" + text)
-
+        # Базовое сообщение без reference docs (проходы 1, 2)
+        base_parts: list[str] = ["ТЕКСТ ОТЧЁТА ДЛЯ ПРОВЕРКИ:\n\n" + text]
         if prompt:
-            user_parts.append("ДОПОЛНИТЕЛЬНЫЕ УКАЗАНИЯ:\n\n" + prompt)
+            base_parts.append("ДОПОЛНИТЕЛЬНЫЕ УКАЗАНИЯ:\n\n" + prompt)
+        base_user_message = "\n\n---\n\n".join(base_parts)
 
-        base_user_message = "\n\n---\n\n".join(user_parts)
-
-        provider = AVAILABLE_MODELS[model]["provider"]
-        sequential = provider == "gemini"
+        # Расширенное сообщение с reference docs (проход 3 — нормативы)
+        if reference:
+            ref_parts = [
+                "НОРМАТИВНЫЕ ДОКУМЕНТЫ ДЛЯ СПРАВКИ:\n\n" + reference,
+                "ТЕКСТ ОТЧЁТА ДЛЯ ПРОВЕРКИ:\n\n" + text,
+            ]
+            if prompt:
+                ref_parts.append("ДОПОЛНИТЕЛЬНЫЕ УКАЗАНИЯ:\n\n" + prompt)
+            ref_user_message = "\n\n---\n\n".join(ref_parts)
+        else:
+            ref_user_message = base_user_message
 
         logger.info(
-            "Запуск %d %s проходов: %d символов текста, %d символов reference, модель %s",
+            "Запуск %d параллельных проходов: %d символов текста, %d символов reference, модель %s",
             len(REVIEW_PASSES),
-            "последовательных" if sequential else "параллельных",
             len(text),
             len(reference),
             model,
         )
 
-        if sequential:
-            pass_results = []
-            for focus in REVIEW_PASSES:
-                result = await self._run_single_pass(base_user_message, focus, model)
-                pass_results.append(result)
-        else:
-            tasks = [
-                self._run_single_pass(base_user_message, focus, model)
-                for focus in REVIEW_PASSES
-            ]
-            pass_results = await asyncio.gather(*tasks)
+        tasks = [
+            self._run_single_pass(
+                ref_user_message if pass_cfg["needs_reference"] else base_user_message,
+                pass_cfg,
+                model,
+            )
+            for pass_cfg in REVIEW_PASSES
+        ]
+        pass_results = await asyncio.gather(*tasks)
 
         return await self._merge_results(pass_results, model)
 
     async def _call_llm(
         self, model: str, system_prompt: str, user_message: str,
     ) -> str:
-        """Единая точка вызова LLM — роутит на нужный провайдер."""
-        provider = AVAILABLE_MODELS[model]["provider"]
-
-        if provider == "openai":
-            return await self._call_openai(model, system_prompt, user_message)
-        elif provider == "gemini":
-            return await self._call_gemini(model, system_prompt, user_message)
-        else:
-            raise ValueError(f"Неизвестный провайдер: {provider}")
-
-    async def _call_openai(
-        self, model: str, system_prompt: str, user_message: str,
-    ) -> str:
+        """Вызов OpenAI LLM."""
         client = self._get_openai_client()
         response = await asyncio.to_thread(
             client.chat.completions.create,
@@ -369,46 +346,12 @@ class DocumentReviewService:
         )
         return response.choices[0].message.content
 
-    async def _call_gemini(
-        self, model: str, system_prompt: str, user_message: str,
-    ) -> str:
-        from google.genai import types
-
-        client = self._get_gemini_client()
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=model,
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=REVIEW_TEMPERATURE,
-                max_output_tokens=REVIEW_MAX_TOKENS,
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                    disable=True,
-                ),
-            ),
-        )
-        logger.info(
-            "Gemini [%s]: tokens %s/%s",
-            model,
-            response.usage_metadata.prompt_token_count,
-            response.usage_metadata.candidates_token_count,
-        )
-        return response.text
-
     async def _run_single_pass(
-        self, user_message: str, focus_categories: str, model: str,
+        self, user_message: str, pass_cfg: dict, model: str,
     ) -> str:
         """Один фокусированный проход проверки."""
-        focused_message = (
-            f"{user_message}\n\n---\n\n"
-            f"ФОКУС ЭТОГО ПРОХОДА:\n"
-            f"Проверяй ТОЛЬКО следующие категории:\n{focus_categories}\n"
-            f"Не выдавай замечания других категорий."
-        )
-
         try:
-            result = await self._call_llm(model, SYSTEM_PROMPT, focused_message)
+            result = await self._call_llm(model, pass_cfg["system_prompt"], user_message)
             logger.info("Проход завершён: %d символов", len(result))
             return result
         except Exception as e:

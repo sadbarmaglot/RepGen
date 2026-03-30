@@ -12,5 +12,5 @@ class DocumentReviewRequest(BaseModel):
     )
     model: Optional[str] = Field(
         default=None,
-        description="Модель для проверки (например gpt-5.4, gemini-2.5-pro, claude-sonnet-4.6)",
+        description="Модель для проверки (например gpt-5.4, gpt-5.4-mini)",
     )
