@@ -1,6 +1,7 @@
 import asyncio
 import io
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +25,12 @@ AVAILABLE_MODELS = {
 }
 
 REFERENCE_DOCS_DIR = Path(__file__).resolve().parent.parent.parent / "reference_docs"
+
+# Маркеры разделов, которые нужно исключить из проверки.
+# Regex-паттерны — ищутся как заголовки (не инлайн-упоминания).
+TRUNCATE_MARKERS = [
+    r"поверочные[ \t]+расч[её]ты",
+]
 
 _ROLE_PREAMBLE = """\
 РОЛЬ И ГРАНИЦЫ
@@ -192,6 +199,13 @@ class DocumentReviewService:
                 "review_result": "Документ пуст или не содержит текста.",
             }
 
+        text, truncated_section, removed_chars = self._truncate_text(text)
+        if truncated_section:
+            logger.info(
+                "Обрезан раздел «%s»: удалено %d символов",
+                truncated_section, removed_chars,
+            )
+
         review_result = await self._run_llm_review(text, prompt, model)
 
         return {
@@ -199,6 +213,64 @@ class DocumentReviewService:
             "extracted_text": text,
             "review_result": review_result,
         }
+
+    # ── Обрезка нерелевантных разделов ─────────────────────────────
+
+    @staticmethod
+    def _truncate_text(
+        text: str, markers: list[str] | None = None,
+    ) -> tuple[str, str | None, int]:
+        """
+        Находит первый заголовок раздела по маркерам и обрезает текст.
+        Пропускает строки оглавления и инлайн-упоминания.
+        Возвращает (обрезанный_текст, название_секции, кол-во_удалённых_символов).
+        """
+        markers = markers if markers is not None else TRUNCATE_MARKERS
+        if not markers:
+            return text, None, 0
+
+        pattern = "|".join(f"(?:{m})" for m in markers)
+
+        for match in re.finditer(
+            rf"^.*(?:{pattern}).*$", text, re.IGNORECASE | re.MULTILINE,
+        ):
+            line = match.group(0).strip()
+
+            # Пропускаем строки оглавления (содержат "...")
+            if re.search(r"\.{3,}", line):
+                continue
+
+            # Слишком длинная — скорее всего абзац, а не заголовок
+            if len(line) > 150:
+                continue
+
+            # Маркер должен быть в начале (после опционального префикса)
+            heading_re = rf"^(?:приложение\s+\d+\s+|п\d+[\.\d]*\.?\s*)?(?:{pattern})"
+            if not re.search(heading_re, line, re.IGNORECASE):
+                continue
+
+            # Заголовки начинаются с заглавной буквы
+            first_alpha = next((c for c in line if c.isalpha()), None)
+            if first_alpha and first_alpha.islower():
+                continue
+
+            # Заголовки не заканчиваются точкой
+            if line.endswith("."):
+                continue
+
+            cut_pos = match.start()
+
+            # Захватываем маркер [Страница N] перед заголовком
+            before = text[:cut_pos].rstrip()
+            page_marker = re.search(r"\[Страница \d+\]\s*$", before)
+            if page_marker:
+                cut_pos = page_marker.start()
+
+            truncated = text[:cut_pos].rstrip()
+            removed = len(text) - len(truncated)
+            return truncated, line, removed
+
+        return text, None, 0
 
     # ── Парсинг ───────────────────────────────────────────────────
 
