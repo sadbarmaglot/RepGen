@@ -199,12 +199,7 @@ class DocumentReviewService:
                 "review_result": "Документ пуст или не содержит текста.",
             }
 
-        text, truncated_section, removed_chars = self._truncate_text(text)
-        if truncated_section:
-            logger.info(
-                "Обрезан раздел «%s»: удалено %d символов",
-                truncated_section, removed_chars,
-            )
+        text, truncated_section, _ = self._truncate_text(text)
 
         review_result = await self._run_llm_review(text, prompt, model)
 
@@ -214,16 +209,38 @@ class DocumentReviewService:
             "review_result": review_result,
         }
 
-    # ── Обрезка нерелевантных разделов ─────────────────────────────
+    # ── Вырезка нерелевантных разделов ─────────────────────────────
+
+    _NEXT_SECTION_RE = re.compile(
+        r"^(?:Приложение|ПРИЛОЖЕНИЕ)\s+[А-ЯA-Z\d]",
+        re.MULTILINE,
+    )
+
+    @staticmethod
+    def _is_heading(line: str, pattern: str) -> bool:
+        """Проверяет, является ли строка заголовком раздела (а не TOC/инлайн)."""
+        if re.search(r"\.{3,}", line):
+            return False
+        if len(line) > 150:
+            return False
+        heading_re = rf"^(?:приложение\s+\d+\s+|п\d+[\.\d]*\.?\s*)?(?:{pattern})"
+        if not re.search(heading_re, line, re.IGNORECASE):
+            return False
+        first_alpha = next((c for c in line if c.isalpha()), None)
+        if first_alpha and first_alpha.islower():
+            return False
+        if line.endswith("."):
+            return False
+        return True
 
     @staticmethod
     def _truncate_text(
         text: str, markers: list[str] | None = None,
     ) -> tuple[str, str | None, int]:
         """
-        Находит первый заголовок раздела по маркерам и обрезает текст.
-        Пропускает строки оглавления и инлайн-упоминания.
-        Возвращает (обрезанный_текст, название_секции, кол-во_удалённых_символов).
+        Вырезает секцию, начинающуюся с заголовка по маркеру,
+        до следующего приложения/раздела (или до конца текста).
+        Возвращает (текст_без_секции, название_секции, кол-во_удалённых_символов).
         """
         markers = markers if markers is not None else TRUNCATE_MARKERS
         if not markers:
@@ -236,39 +253,44 @@ class DocumentReviewService:
         ):
             line = match.group(0).strip()
 
-            # Пропускаем строки оглавления (содержат "...")
-            if re.search(r"\.{3,}", line):
+            if not DocumentReviewService._is_heading(line, pattern):
+                logger.debug("Пропуск не-заголовка: «%s»", line[:80])
                 continue
 
-            # Слишком длинная — скорее всего абзац, а не заголовок
-            if len(line) > 150:
-                continue
+            logger.info("Найден заголовок для вырезки: «%s» (pos %d)", line, match.start())
 
-            # Маркер должен быть в начале (после опционального префикса)
-            heading_re = rf"^(?:приложение\s+\d+\s+|п\d+[\.\d]*\.?\s*)?(?:{pattern})"
-            if not re.search(heading_re, line, re.IGNORECASE):
-                continue
-
-            # Заголовки начинаются с заглавной буквы
-            first_alpha = next((c for c in line if c.isalpha()), None)
-            if first_alpha and first_alpha.islower():
-                continue
-
-            # Заголовки не заканчиваются точкой
-            if line.endswith("."):
-                continue
-
-            cut_pos = match.start()
-
-            # Захватываем маркер [Страница N] перед заголовком
-            before = text[:cut_pos].rstrip()
+            cut_start = match.start()
+            before = text[:cut_start].rstrip()
             page_marker = re.search(r"\[Страница \d+\]\s*$", before)
             if page_marker:
-                cut_pos = page_marker.start()
+                cut_start = page_marker.start()
 
-            truncated = text[:cut_pos].rstrip()
-            removed = len(text) - len(truncated)
-            return truncated, line, removed
+            next_section = DocumentReviewService._NEXT_SECTION_RE.search(
+                text, match.end(),
+            )
+            if next_section:
+                cut_end = next_section.start()
+                nl = text.find("\n", next_section.start())
+                next_heading = text[next_section.start():nl if nl != -1 else len(text)].strip()
+                logger.info(
+                    "Конец вырезки: «%s» (pos %d)", next_heading[:80], next_section.start(),
+                )
+                before_next = text[:cut_end].rstrip()
+                pm = re.search(r"\[Страница \d+\]\s*$", before_next)
+                if pm:
+                    cut_end = pm.start()
+            else:
+                cut_end = len(text)
+                logger.info("Конец вырезки: конец документа (pos %d)", cut_end)
+
+            result = text[:cut_start].rstrip() + "\n" + text[cut_end:].lstrip()
+            removed = len(text) - len(result)
+
+            logger.info(
+                "Вырезка: %d символов (%.1f%%), осталось %d символов",
+                removed, removed * 100 / len(text), len(result),
+            )
+            return result, line, removed
 
         return text, None, 0
 
