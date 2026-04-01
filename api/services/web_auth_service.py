@@ -119,7 +119,7 @@ class WebAuthService:
         alphabet = string.ascii_letters + string.digits
         return "".join(secrets.choice(alphabet) for _ in range(length))
 
-    async def create_client(self, email: str, name: Optional[str] = None, company: Optional[str] = None, view_mode: Optional[str] = None) -> tuple[WebUser, str]:
+    async def create_client(self, email: str, admin: WebUser, name: Optional[str] = None, company: Optional[str] = None, view_mode: Optional[str] = None) -> tuple[WebUser, str]:
         existing = await self.db.execute(
             select(WebUser).where(WebUser.email == email)
         )
@@ -137,19 +137,25 @@ class WebAuthService:
             company=company,
             role="client",
             view_mode=ViewMode(view_mode) if view_mode else ViewMode.simplified,
+            visible_group=admin.visible_group,
         )
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
         return user, raw_password
 
-    async def update_client(self, client_id: int, data: dict) -> WebUser:
-        result = await self.db.execute(
-            select(WebUser).where(WebUser.id == client_id, WebUser.role == "client")
-        )
+    async def _get_client_for_admin(self, client_id: int, admin: WebUser) -> WebUser:
+        query = select(WebUser).where(WebUser.id == client_id, WebUser.role == "client")
+        if admin.visible_group:
+            query = query.where(WebUser.visible_group == admin.visible_group)
+        result = await self.db.execute(query)
         user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Клиент не найден")
+        return user
+
+    async def update_client(self, client_id: int, data: dict, admin: WebUser) -> WebUser:
+        user = await self._get_client_for_admin(client_id, admin)
 
         for field in ("name", "company", "email", "is_active"):
             if field in data and data[field] is not None:
@@ -162,24 +168,13 @@ class WebAuthService:
         await self.db.refresh(user)
         return user
 
-    async def delete_client(self, client_id: int):
-        result = await self.db.execute(
-            select(WebUser).where(WebUser.id == client_id, WebUser.role == "client")
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Клиент не найден")
-
+    async def delete_client(self, client_id: int, admin: WebUser):
+        user = await self._get_client_for_admin(client_id, admin)
         await self.db.delete(user)
         await self.db.commit()
 
-    async def reset_password(self, client_id: int) -> tuple[WebUser, str]:
-        result = await self.db.execute(
-            select(WebUser).where(WebUser.id == client_id, WebUser.role == "client")
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Клиент не найден")
+    async def reset_password(self, client_id: int, admin: WebUser) -> tuple[WebUser, str]:
+        user = await self._get_client_for_admin(client_id, admin)
 
         raw_password = self._generate_password()
         user.password_hash = pwd_context.hash(raw_password)
@@ -189,30 +184,27 @@ class WebAuthService:
         await self.db.refresh(user)
         return user, raw_password
 
-    async def list_clients(self) -> list[WebUser]:
-        result = await self.db.execute(
-            select(WebUser).where(WebUser.role == "client").order_by(WebUser.id)
-        )
+    async def list_clients(self, admin: WebUser) -> list[WebUser]:
+        query = select(WebUser).where(WebUser.role == "client").order_by(WebUser.id)
+        if admin.visible_group:
+            query = query.where(WebUser.visible_group == admin.visible_group)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_client(self, client_id: int) -> WebUser:
-        result = await self.db.execute(
-            select(WebUser).where(WebUser.id == client_id, WebUser.role == "client")
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Клиент не найден")
-        return user
+    async def get_client(self, client_id: int, admin: WebUser) -> WebUser:
+        return await self._get_client_for_admin(client_id, admin)
 
     # --- Project access ---
 
-    async def assign_project(self, web_user_id: int, project_id: int) -> WebUserProjectAccess:
-        # Проверяем существование пользователя и проекта
-        user_result = await self.db.execute(select(WebUser).where(WebUser.id == web_user_id))
-        if not user_result.scalar_one_or_none():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    async def assign_project(self, web_user_id: int, project_id: int, admin: WebUser) -> WebUserProjectAccess:
+        await self._get_client_for_admin(web_user_id, admin)
 
-        project_result = await self.db.execute(select(Project).where(Project.id == project_id))
+        query = select(Project).where(Project.id == project_id)
+        if admin.visible_group:
+            query = query.join(User, User.id == Project.owner_id).where(
+                User.role_type == admin.visible_group
+            )
+        project_result = await self.db.execute(query)
         if not project_result.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Проект не найден")
 
@@ -232,7 +224,8 @@ class WebAuthService:
         await self.db.refresh(access)
         return access
 
-    async def unassign_project(self, web_user_id: int, project_id: int):
+    async def unassign_project(self, web_user_id: int, project_id: int, admin: WebUser):
+        await self._get_client_for_admin(web_user_id, admin)
         result = await self.db.execute(
             select(WebUserProjectAccess).where(
                 WebUserProjectAccess.web_user_id == web_user_id,
@@ -288,7 +281,8 @@ class WebAuthService:
         )
         return result.scalar_one_or_none() is not None
 
-    async def get_client_projects(self, client_id: int) -> list[Project]:
+    async def get_client_projects(self, client_id: int, admin: WebUser) -> list[Project]:
+        await self._get_client_for_admin(client_id, admin)
         result = await self.db.execute(
             select(Project)
             .join(WebUserProjectAccess, WebUserProjectAccess.project_id == Project.id)

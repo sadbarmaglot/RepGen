@@ -16,11 +16,11 @@ router = APIRouter(prefix="/web/admin", tags=["web-admin"])
 
 @router.get("/clients", response_model=WebClientListResponse)
 async def list_clients(
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    clients = await service.list_clients()
+    clients = await service.list_clients(admin)
     return WebClientListResponse(
         clients=[WebUserResponse.model_validate(c) for c in clients],
         total=len(clients),
@@ -30,11 +30,11 @@ async def list_clients(
 @router.post("/clients", response_model=WebClientCreatedResponse, status_code=status.HTTP_201_CREATED)
 async def create_client(
     data: WebClientCreate,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    user, raw_password = await service.create_client(data.email, data.name, data.company, data.view_mode)
+    user, raw_password = await service.create_client(data.email, admin, data.name, data.company, data.view_mode)
     return WebClientCreatedResponse(
         user=WebUserResponse.model_validate(user),
         generated_password=raw_password,
@@ -44,11 +44,11 @@ async def create_client(
 @router.get("/clients/{client_id}", response_model=WebUserResponse)
 async def get_client(
     client_id: int,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    client = await service.get_client(client_id)
+    client = await service.get_client(client_id, admin)
     return WebUserResponse.model_validate(client)
 
 
@@ -56,32 +56,32 @@ async def get_client(
 async def update_client(
     client_id: int,
     data: WebClientUpdate,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    client = await service.update_client(client_id, data.model_dump(exclude_unset=True))
+    client = await service.update_client(client_id, data.model_dump(exclude_unset=True), admin)
     return WebUserResponse.model_validate(client)
 
 
 @router.delete("/clients/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_client(
     client_id: int,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    await service.delete_client(client_id)
+    await service.delete_client(client_id, admin)
 
 
 @router.post("/clients/{client_id}/reset-password", response_model=WebClientCreatedResponse)
 async def reset_client_password(
     client_id: int,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    user, raw_password = await service.reset_password(client_id)
+    user, raw_password = await service.reset_password(client_id, admin)
     return WebClientCreatedResponse(
         user=WebUserResponse.model_validate(user),
         generated_password=raw_password,
@@ -91,11 +91,11 @@ async def reset_client_password(
 @router.get("/clients/{client_id}/projects", response_model=ProjectListResponse)
 async def get_client_projects(
     client_id: int,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    projects = await service.get_client_projects(client_id)
+    projects = await service.get_client_projects(client_id, admin)
     return ProjectListResponse(
         projects=[ProjectResponse.model_validate(p) for p in projects],
         total=len(projects),
@@ -106,11 +106,11 @@ async def get_client_projects(
 async def assign_project(
     client_id: int,
     data: WebProjectAssign,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    access = await service.assign_project(client_id, data.project_id)
+    access = await service.assign_project(client_id, data.project_id, admin)
     return WebProjectAccessResponse.model_validate(access)
 
 
@@ -118,8 +118,8 @@ async def assign_project(
 async def unassign_project(
     client_id: int,
     project_id: int,
-    _: WebUser = Depends(get_current_web_admin),
+    admin: WebUser = Depends(get_current_web_admin),
     db: AsyncSession = Depends(get_db),
 ):
     service = WebAuthService(db)
-    await service.unassign_project(client_id, project_id)
+    await service.unassign_project(client_id, project_id, admin)
