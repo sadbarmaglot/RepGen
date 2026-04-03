@@ -198,6 +198,8 @@ async def web_get_plan_marks_with_photos(
             defect_volume_value=mark.defect_volume_value,
             defect_volume_unit=mark.defect_volume_unit,
             defect_type=mark.defect_type,
+            zone_points=mark.zone_points,
+            crack_points=mark.crack_points,
             photos=photo_responses, created_at=mark.created_at,
         ))
 

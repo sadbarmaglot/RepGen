@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 from ..database.enums import MarkType, MarkVolumeUnit, DefectType
 
@@ -25,6 +25,8 @@ class MarkCreateRequest(BaseModel):
     defect_volume_value: Optional[Decimal] = Field(None, ge=0, description="Значение объема дефекта")
     defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Единица измерения объема дефекта")
     defect_type: Optional[DefectType] = Field(None, description="Тип дефекта")
+    zone_points: Optional[List[float]] = Field(None, description="Полигон зоны покрытия [x1,y1, x2,y2, ...]")
+    crack_points: Optional[List[float]] = Field(None, description="Трещина [x1,y1, x2,y2]")
 
     @field_validator("defect_type", mode="before")
     @classmethod
@@ -42,6 +44,8 @@ class MarkUpdateRequest(BaseModel):
     defect_volume_value: Optional[Decimal] = Field(None, ge=0, description="Новое значение объема дефекта")
     defect_volume_unit: Optional[MarkVolumeUnit] = Field(None, description="Новая единица измерения объема дефекта")
     defect_type: Optional[DefectType] = Field(None, description="Новый тип дефекта")
+    zone_points: Optional[List[float]] = Field(None, description="Полигон зоны покрытия [x1,y1, x2,y2, ...]")
+    crack_points: Optional[List[float]] = Field(None, description="Трещина [x1,y1, x2,y2]")
 
     @field_validator("defect_type", mode="before")
     @classmethod

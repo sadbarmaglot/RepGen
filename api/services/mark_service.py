@@ -52,7 +52,9 @@ class MarkService:
             is_horizontal=mark_data.is_horizontal if mark_data.is_horizontal is not None else True,
             defect_volume_value=mark_data.defect_volume_value,
             defect_volume_unit=mark_data.defect_volume_unit,
-            defect_type=mark_data.defect_type
+            defect_type=mark_data.defect_type,
+            zone_points=mark_data.zone_points,
+            crack_points=mark_data.crack_points
         )
         
         try:
@@ -161,7 +163,11 @@ class MarkService:
             mark.defect_volume_unit = mark_data.defect_volume_unit
         if "defect_type" in mark_data.model_fields_set:
             mark.defect_type = mark_data.defect_type
-        
+        if "zone_points" in mark_data.model_fields_set:
+            mark.zone_points = mark_data.zone_points
+        if "crack_points" in mark_data.model_fields_set:
+            mark.crack_points = mark_data.crack_points
+
         try:
             await self.db.commit()
             await self.db.refresh(mark)
@@ -257,6 +263,8 @@ class MarkService:
                 defect_volume_value=mark.defect_volume_value,
                 defect_volume_unit=mark.defect_volume_unit,
                 defect_type=mark.defect_type,
+                zone_points=mark.zone_points,
+                crack_points=mark.crack_points,
                 photos=photo_responses,
                 created_at=mark.created_at
             )
@@ -335,6 +343,8 @@ class MarkService:
                     defect_volume_value=mark.defect_volume_value,
                     defect_volume_unit=mark.defect_volume_unit,
                     defect_type=mark.defect_type,
+                    zone_points=mark.zone_points,
+                    crack_points=mark.crack_points,
                     photos=photo_responses,
                     created_at=mark.created_at
                 ))
@@ -397,6 +407,8 @@ class MarkService:
             defect_volume_value=mark.defect_volume_value,
             defect_volume_unit=mark.defect_volume_unit,
             defect_type=mark.defect_type,
+            zone_points=mark.zone_points,
+            crack_points=mark.crack_points,
             photo_count=photo_count,
             created_at=mark.created_at
         )

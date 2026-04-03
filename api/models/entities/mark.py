@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, Enum, Numeric, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -20,6 +21,8 @@ class Mark(Base):
     defect_volume_value = Column(Numeric(12, 2), nullable=True, comment="Значение объема дефекта")
     defect_volume_unit = Column(Enum(MarkVolumeUnit, name="mark_volume_unit"), nullable=True)
     defect_type = Column(Enum(DefectType, name="defect_type"), nullable=True, comment="Тип дефекта")
+    zone_points = Column(JSONB, nullable=True, comment="Полигон зоны покрытия [x1,y1, x2,y2, ...]")
+    crack_points = Column(JSONB, nullable=True, comment="Трещина [x1,y1, x2,y2]")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с планом
