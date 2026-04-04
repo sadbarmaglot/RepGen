@@ -9,6 +9,7 @@ from api.models.requests.document_review_requests import DocumentReviewRequest
 from api.models.responses.document_review_responses import (
     DocumentUploadResponse,
     DocumentReviewResponse,
+    DocumentReviewFixesResponse,
 )
 from api.services.document_review_service import (
     DocumentReviewService,
@@ -90,4 +91,38 @@ async def review_document(
                 detail="Слишком много запросов к модели. Подождите минуту и попробуйте снова.",
             )
         logger.error("Ошибка проверки документа: %s", e)
+        raise HTTPException(status_code=500, detail=f"Ошибка проверки: {err_msg}")
+
+
+@router.post("/review-fixes", response_model=DocumentReviewFixesResponse)
+async def review_document_fixes(
+    request: DocumentReviewRequest,
+    _: User = Depends(get_current_user),
+):
+    """Проверка отчёта с структурированными замечаниями (find/replace)."""
+    try:
+        result = await document_review_service.review_document_fixes(
+            document_name=request.document_name,
+            prompt=request.prompt,
+            model=request.model,
+        )
+        return DocumentReviewFixesResponse(**result)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Документ не найден в хранилище")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        err_msg = str(e)
+        lower_msg = err_msg.lower()
+        if "context_length_exceeded" in err_msg or "token" in lower_msg:
+            raise HTTPException(
+                status_code=400,
+                detail="Документ слишком большой для выбранной модели.",
+            )
+        if "429" in err_msg or "rate_limit" in lower_msg or "resource_exhausted" in lower_msg:
+            raise HTTPException(
+                status_code=429,
+                detail="Слишком много запросов к модели. Подождите минуту и попробуйте снова.",
+            )
+        logger.error("Ошибка проверки документа (fixes): %s", e)
         raise HTTPException(status_code=500, detail=f"Ошибка проверки: {err_msg}")

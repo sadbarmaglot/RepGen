@@ -1,5 +1,6 @@
 import asyncio
 import io
+import json
 import logging
 import re
 from pathlib import Path
@@ -119,6 +120,35 @@ REVIEW_PASSES = [
     },
 ]
 
+MERGE_FIXES_SYSTEM_PROMPT = """\
+Ты объединяешь результаты нескольких проходов проверки технического отчёта.
+
+Правила:
+1. Удали дубликаты — одно и то же замечание, даже если сформулировано иначе.
+2. Для каждого замечания укажи ТОЧНУЮ цитату из текста отчёта (поле find) и исправленный вариант (поле replace).
+3. Если замечание нельзя исправить автоматически (нужно добавить раздел, переструктурировать и т.д.) — \
+поставь auto_fixable: false, find и replace оставь null.
+4. Поле context — фрагмент текста ~50 символов вокруг ошибки, чтобы найти точное место если find встречается несколько раз.
+
+Отвечай ТОЛЬКО валидным JSON (без markdown-обёртки):
+{
+  "remarks": [
+    {
+      "id": 1,
+      "category": "🔴 КРИТ",
+      "where": "раздел / абзац",
+      "problem": "описание ошибки",
+      "fix": "как исправить",
+      "find": "точная цитата с ошибкой из текста",
+      "replace": "исправленный вариант",
+      "context": "...фрагмент текста вокруг ошибки...",
+      "auto_fixable": true
+    }
+  ],
+  "summary": "🔴 _ / 🟠 _ / 🟡 _ / 🔵 _ / 🟢 _ / ⚪️ _"
+}\
+"""
+
 MERGE_SYSTEM_PROMPT = """\
 Ты объединяешь результаты нескольких проходов проверки технического отчёта в единый список.
 
@@ -207,6 +237,43 @@ class DocumentReviewService:
             "document_name": document_name,
             "extracted_text": text,
             "review_result": review_result,
+        }
+
+    async def review_document_fixes(
+        self,
+        document_name: str,
+        prompt: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> dict:
+        """Парсит документ и возвращает структурированные замечания с find/replace."""
+        model = model or DEFAULT_MODEL
+        if model not in AVAILABLE_MODELS:
+            raise ValueError(
+                f"Неподдерживаемая модель: {model}. "
+                f"Доступные: {', '.join(AVAILABLE_MODELS)}"
+            )
+
+        text = await self.parse_document(document_name)
+
+        if not text.strip():
+            return {"document_name": document_name, "remarks": [], "summary": ""}
+
+        text, _, _ = self._truncate_text(text)
+
+        fixes_json = await self._run_llm_review(
+            text, prompt, model, merge_prompt=MERGE_FIXES_SYSTEM_PROMPT,
+        )
+
+        try:
+            parsed = json.loads(fixes_json)
+        except json.JSONDecodeError:
+            logger.error("LLM вернул невалидный JSON: %s", fixes_json[:200])
+            parsed = {"remarks": [], "summary": ""}
+
+        return {
+            "document_name": document_name,
+            "remarks": parsed.get("remarks", []),
+            "summary": parsed.get("summary", ""),
         }
 
     # ── Вырезка нерелевантных разделов ─────────────────────────────
@@ -377,6 +444,7 @@ class DocumentReviewService:
 
     async def _run_llm_review(
         self, text: str, prompt: Optional[str] = None, model: str = DEFAULT_MODEL,
+        merge_prompt: str = MERGE_SYSTEM_PROMPT,
     ) -> str:
         """Запускает параллельные фокусированные проходы и объединяет результаты."""
         reference = self._load_reference_texts()
@@ -417,7 +485,7 @@ class DocumentReviewService:
         ]
         pass_results = await asyncio.gather(*tasks)
 
-        return await self._merge_results(pass_results, model)
+        return await self._merge_results(pass_results, model, merge_prompt)
 
     async def _call_llm(
         self, model: str, system_prompt: str, user_message: str,
@@ -452,7 +520,10 @@ class DocumentReviewService:
             logger.error("Ошибка прохода LLM: %s", e)
             raise
 
-    async def _merge_results(self, pass_results: list[str], model: str) -> str:
+    async def _merge_results(
+        self, pass_results: list[str], model: str,
+        merge_prompt: str = MERGE_SYSTEM_PROMPT,
+    ) -> str:
         """Объединяет результаты проходов, удаляя дубликаты."""
         combined = "\n\n".join(
             f"--- Проход {i + 1} ---\n{result}"
@@ -460,7 +531,7 @@ class DocumentReviewService:
         )
 
         try:
-            result = await self._call_llm(model, MERGE_SYSTEM_PROMPT, combined)
+            result = await self._call_llm(model, merge_prompt, combined)
             logger.info("Объединение завершено: %d символов", len(result))
             return result
         except Exception as e:
