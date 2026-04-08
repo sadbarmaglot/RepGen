@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -13,6 +14,7 @@ class Plan(Base):
     name = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     image_name = Column(String(255), nullable=True)
+    axes = Column(JSONB, nullable=True, comment="Оси плана [{name, x1, y1, x2, y2}, ...]")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с объектом

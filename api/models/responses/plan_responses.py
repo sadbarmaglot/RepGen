@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Any
 from datetime import datetime
 
 class PlanResponse(BaseModel):
@@ -9,6 +9,7 @@ class PlanResponse(BaseModel):
     name: str = Field(..., description="Название плана")
     description: Optional[str] = Field(None, description="Описание плана")
     image_url: Optional[str] = Field(None, description="Подписной URL изображения")
+    axes: Optional[List[Any]] = Field(None, description="Оси плана [{name, x1, y1, x2, y2}, ...]")
     created_at: datetime = Field(..., description="Дата создания плана")
     
     class Config:

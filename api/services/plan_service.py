@@ -112,6 +112,8 @@ class PlanService:
             plan.name = plan_data.name
         if plan_data.description is not None:
             plan.description = plan_data.description
+        if "axes" in plan_data.model_fields_set:
+            plan.axes = plan_data.axes
         
         try:
             await self.db.commit()
@@ -169,5 +171,6 @@ class PlanService:
             name=plan.name,
             description=plan.description,
             image_url=image_url,
+            axes=plan.axes,
             created_at=plan.created_at
         )

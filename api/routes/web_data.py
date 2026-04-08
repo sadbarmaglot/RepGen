@@ -118,7 +118,8 @@ async def web_get_object_plans(
                 pass
         plan_responses.append(PlanResponse(
             id=plan.id, object_id=plan.object_id, name=plan.name,
-            description=plan.description, image_url=image_url, created_at=plan.created_at,
+            description=plan.description, image_url=image_url, axes=plan.axes,
+            created_at=plan.created_at,
         ))
 
     return PlanListResponse(plans=plan_responses, total=len(plan_responses))
