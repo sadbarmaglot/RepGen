@@ -7,6 +7,7 @@ class ImageAnalysisRequest(BaseModel):
     construction_type: Optional[str] = Field(None, description="Тип конструкции для фильтрации базы дефектов")
     photo_id: Optional[int] = Field(None, description="ID фотографии для сохранения результата в БД")
     object_id: Optional[int] = Field(None, description="ID объекта для денормализации")
+    defect_type: Optional[str] = Field(None, description="Тег дефекта (значение DefectType). Если тег входит в каталог кросс-категорийных дефектов — ответ возвращается из каталога без обращения к LLM")
 
 
 class DefectAnalysisUpdateRequest(BaseModel):
@@ -24,3 +25,4 @@ class QueueGroupAnalysisRequest(BaseModel):
     construction_type: Optional[str] = Field(None, description="Тип конструкции для фильтрации базы дефектов")
     photo_ids: list[int] = Field(..., description="ID всех фотографий группы (включая репрезентативное)")
     object_id: Optional[int] = Field(None, description="ID объекта для денормализации")
+    defect_type: Optional[str] = Field(None, description="Тег дефекта (значение DefectType). Если тег входит в каталог кросс-категорийных дефектов — результат берётся из каталога без обращения к LLM")

@@ -7,6 +7,7 @@ from api.services.defect_analyzer import DefectAnalyzer
 from api.services.defect_analysis_service import DefectAnalysisService
 from api.services.model_manager import ModelManager
 from api.services.database import AsyncSessionLocal
+from common.defects_db import get_defect_by_tag
 from settings import DEFECT_QUEUE_MAX_CONCURRENT, DEFECT_QUEUE_MAX_SIZE
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,8 @@ class DefectAnalysisQueueService:
         image_name: str,
         construction_type: Optional[str],
         photo_ids: list[int],
-        object_id: Optional[int]
+        object_id: Optional[int],
+        defect_type: Optional[str] = None,
     ) -> bool:
         """
         Поставить групповой анализ в очередь.
@@ -57,7 +59,7 @@ class DefectAnalysisQueueService:
             self.pending_count += 1
 
         task = asyncio.create_task(
-            self._process_group_analysis(image_name, construction_type, photo_ids, object_id)
+            self._process_group_analysis(image_name, construction_type, photo_ids, object_id, defect_type)
         )
 
         async with self._lock:
@@ -86,13 +88,49 @@ class DefectAnalysisQueueService:
         image_name: str,
         construction_type: Optional[str],
         photo_ids: list[int],
-        object_id: Optional[int]
+        object_id: Optional[int],
+        defect_type: Optional[str] = None,
     ) -> None:
         """
         Обработка группового анализа:
         1. AI анализ репрезентативного изображения
         2. Сохранение результата для всех photo_ids группы
+
+        Короткое замыкание: если defect_type входит в каталог кросс-категорийных
+        дефектов — LLM не вызываем, результат берём из словаря.
         """
+        # Короткое замыкание: не занимаем семафор и не идём в LLM
+        catalog_defect = get_defect_by_tag(defect_type) if defect_type else None
+        if catalog_defect:
+            logger.info(
+                f"Короткое замыкание группового анализа: тег={defect_type} → "
+                f"код={catalog_defect['code']}, photo_count={len(photo_ids)}, LLM пропущен"
+            )
+            async with AsyncSessionLocal() as db:
+                service = DefectAnalysisService(db)
+                saved_count = 0
+                error_count = 0
+                for photo_id in photo_ids:
+                    try:
+                        await service.create_analysis(
+                            photo_id=photo_id,
+                            defect_description=catalog_defect["description"],
+                            recommendation=catalog_defect["recommendation"],
+                            category=catalog_defect["category"],
+                            defect_code=catalog_defect["code"],
+                            object_id=object_id,
+                        )
+                        saved_count += 1
+                    except Exception as save_error:
+                        error_count += 1
+                        logger.error(
+                            f"Ошибка сохранения анализа (короткое замыкание) для фото {photo_id}: {save_error}"
+                        )
+                logger.info(
+                    f"Короткое замыкание завершено: saved={saved_count}, errors={error_count}"
+                )
+            return
+
         async with self.semaphore:
             max_retries = 3
             retry_delay = 2

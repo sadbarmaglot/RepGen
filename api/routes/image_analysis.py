@@ -22,6 +22,7 @@ from api.models.responses import (
     CATEGORY_DISPLAY_MAP
 )
 from common.gc_utils import images_storage
+from common.defects_db import get_defect_by_tag
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,26 @@ async def analyze_image(
         logger.info(f"Получен запрос на анализ изображения: {request.image_name}")
         if request.construction_type is not None:
             logger.info(f"Тип конструкции: {request.construction_type}")
-        
-        result = await defect_analyzer.analyze_single_image_by_name(
-            image_name=request.image_name,
-            construction_type=request.construction_type
-        )
+
+        # Короткое замыкание: если клиент прислал тег из каталога кросс-категорийных
+        # дефектов — берём данные напрямую из словаря, LLM не вызываем.
+        catalog_defect = get_defect_by_tag(request.defect_type) if request.defect_type else None
+        if catalog_defect:
+            logger.info(
+                f"Короткое замыкание: тег={request.defect_type} → код={catalog_defect['code']}, "
+                f"LLM пропущен"
+            )
+            result = {
+                "code": catalog_defect["code"],
+                "description": catalog_defect["description"],
+                "recommendation": catalog_defect["recommendation"],
+                "category": catalog_defect["category"],
+            }
+        else:
+            result = await defect_analyzer.analyze_single_image_by_name(
+                image_name=request.image_name,
+                construction_type=request.construction_type
+            )
 
         defect_code = result.get("code", "")
 
@@ -106,7 +122,8 @@ async def queue_group_defect_analysis(
             image_name=request.image_name,
             construction_type=request.construction_type,
             photo_ids=request.photo_ids,
-            object_id=request.object_id
+            object_id=request.object_id,
+            defect_type=request.defect_type,
         )
 
         if not queued:
