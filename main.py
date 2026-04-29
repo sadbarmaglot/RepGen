@@ -34,6 +34,7 @@ from api.routes.web_auth import router as web_auth_router
 from api.routes.web_data import router as web_data_router
 from api.routes.web_admin import router as web_admin_router
 from api.routes.document_review import router as document_review_router
+from api.routes.updates import router as updates_router
 from api.middleware.logging_middleware import UserLoggingMiddleware
 
 # Настройка логирования
@@ -100,6 +101,7 @@ app.include_router(web_auth_router)
 app.include_router(web_data_router)
 app.include_router(web_admin_router)
 app.include_router(document_review_router)
+app.include_router(updates_router)
 
 # Инициализация сервисов
 model_manager = ModelManager()
