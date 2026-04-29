@@ -2,7 +2,9 @@
 Endpoints для проверки обновлений десктоп-клиентов.
 
 Метаданные релизов хранятся в публичном GCS-бакете repgen_releases:
-  windows/latest.json — текущая версия для Windows
+  windows/latest.json         — Windows installer
+  mac/arm64/latest.json       — macOS Apple Silicon
+  mac/x64/latest.json         — macOS Intel
 
 Бакет публичный (allUsers:objectViewer), поэтому загрузка установщика идёт
 напрямую с storage.googleapis.com, минуя бэкенд.
@@ -22,18 +24,28 @@ router = APIRouter(prefix="/desktop", tags=["desktop-updates"])
 RELEASES_BASE_URL = "https://storage.googleapis.com/repgen_releases"
 CACHE_TTL_SECONDS = 60
 
+# Мэппинг "platform-id (как присылает клиент)" → "subpath в бакете".
+PLATFORM_SUBPATHS: dict[str, str] = {
+    "windows": "windows",
+    "darwin-arm64": "mac/arm64",
+    "darwin-x64": "mac/x64",
+}
+
 _cache: dict[str, tuple[float, dict]] = {}
 
 
 @router.get("/version")
-async def get_latest_version(platform: Literal["windows"] = "windows") -> dict:
+async def get_latest_version(
+    platform: Literal["windows", "darwin-arm64", "darwin-x64"] = "windows",
+) -> dict:
     """
     Возвращает метаданные последнего релиза для указанной платформы.
 
     Структура ответа:
         {
             "version": "1.0.1",
-            "url": "https://storage.googleapis.com/repgen_releases/windows/AI-Engineer-Setup-1.0.1.exe",
+            "url": "https://storage.googleapis.com/repgen_releases/.../installer",
+            "sha256": "...",
             "released_at": "2026-04-29",
             "notes": "...",
             "min_supported": "1.0.0"  // optional
@@ -46,7 +58,8 @@ async def get_latest_version(platform: Literal["windows"] = "windows") -> dict:
     if cached and now - cached[0] < CACHE_TTL_SECONDS:
         return cached[1]
 
-    url = f"{RELEASES_BASE_URL}/{platform}/latest.json"
+    subpath = PLATFORM_SUBPATHS[platform]
+    url = f"{RELEASES_BASE_URL}/{subpath}/latest.json"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(url)
