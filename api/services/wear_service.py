@@ -120,11 +120,18 @@ class WearService:
         for element in elements:
             item = items_map.get(element.id)
 
-            default_weight = float(element.default_weight) if element.default_weight else None
-            assessment = float(item.assessment_percent) if item and item.assessment_percent else None
+            default_weight = float(element.default_weight) if element.default_weight is not None else None
+            assessment = float(item.assessment_percent) if item and item.assessment_percent is not None else None
 
-            # Расчёты
-            weighted_average = self.calculate_weighted_average(assessment, default_weight)
+            group_weight = float(item.group_weight) if item and item.group_weight is not None else None
+            element_weight = float(item.element_weight) if item and item.element_weight is not None else None
+            calculated_weight = float(item.calculated_weight) if item and item.calculated_weight is not None else None
+
+            # Эффективный вес для расчёта средневзвешенного:
+            # пользовательский override колонки 5, иначе дефолт справочника.
+            effective_weight = calculated_weight if calculated_weight is not None else default_weight
+
+            weighted_average = self.calculate_weighted_average(assessment, effective_weight)
             condition = self.get_technical_condition(assessment)
 
             if weighted_average is not None:
@@ -137,6 +144,9 @@ class WearService:
                 name=element.name,
                 parent_id=element.parent_id,
                 default_weight=default_weight,
+                group_weight=group_weight,
+                element_weight=element_weight,
+                calculated_weight=calculated_weight,
                 assessment_percent=assessment,
                 weighted_average=weighted_average,
                 technical_condition=condition,
@@ -156,13 +166,31 @@ class WearService:
             overall_condition_display=CONDITION_DISPLAY_MAP.get(overall) if overall else None
         )
 
+    # Поля, которые клиент может присылать в PATCH/PUT.
+    # Семантика: ключ присутствует в dict => обновляем колонку (включая None = очистить),
+    # ключ отсутствует => оставляем как есть.
+    _EDITABLE_FIELDS = ("assessment_percent", "group_weight", "element_weight", "calculated_weight")
+
+    @classmethod
+    def _apply_field_updates(cls, target: ObjectWearItem, item_data: dict) -> None:
+        """Переносит присутствующие в item_data поля в ORM-объект."""
+        for field in cls._EDITABLE_FIELDS:
+            if field not in item_data:
+                continue
+            value = item_data[field]
+            setattr(target, field, Decimal(str(value)) if value is not None else None)
+
     async def update_object_wear(
         self,
         object_id: int,
         user_id: int,
         items: List[dict]
     ) -> WearCalculationResponse:
-        """Массовое обновление данных износа объекта"""
+        """Массовое обновление данных износа объекта.
+
+        В каждом dict обязателен element_id; остальные поля опциональны и применяются
+        по правилу exclude_unset (наличие ключа = обновить, отсутствие = не трогать).
+        """
         # Проверяем доступ
         if not await self.access_control.check_object_access(object_id, user_id):
             raise ValueError("Объект не найден или нет доступа")
@@ -177,20 +205,12 @@ class WearService:
         # Обновляем или создаём записи
         for item_data in items:
             element_id = item_data['element_id']
-            assessment = item_data.get('assessment_percent')
 
             if element_id in existing_map:
-                # Обновляем существующую запись
-                existing_item = existing_map[element_id]
-                if assessment is not None:
-                    existing_item.assessment_percent = Decimal(str(assessment))
+                self._apply_field_updates(existing_map[element_id], item_data)
             else:
-                # Создаём новую запись
-                new_item = ObjectWearItem(
-                    object_id=object_id,
-                    element_id=element_id,
-                    assessment_percent=Decimal(str(assessment)) if assessment is not None else None
-                )
+                new_item = ObjectWearItem(object_id=object_id, element_id=element_id)
+                self._apply_field_updates(new_item, item_data)
                 self.db.add(new_item)
 
         await self.db.commit()
@@ -203,9 +223,13 @@ class WearService:
         object_id: int,
         element_id: int,
         user_id: int,
-        assessment_percent: Optional[float] = None
+        fields: dict,
     ) -> WearCalculationResponse:
-        """Обновление одного элемента износа"""
+        """Обновление одного элемента износа.
+
+        fields — словарь только из явно переданных клиентом полей
+        (см. _EDITABLE_FIELDS). Пустой dict — no-op.
+        """
         # Проверяем доступ
         if not await self.access_control.check_object_access(object_id, user_id):
             raise ValueError("Объект не найден или нет доступа")
@@ -229,16 +253,10 @@ class WearService:
         existing_item = existing_result.scalar_one_or_none()
 
         if existing_item:
-            # Обновляем
-            if assessment_percent is not None:
-                existing_item.assessment_percent = Decimal(str(assessment_percent))
+            self._apply_field_updates(existing_item, fields)
         else:
-            # Создаём
-            new_item = ObjectWearItem(
-                object_id=object_id,
-                element_id=element_id,
-                assessment_percent=Decimal(str(assessment_percent)) if assessment_percent is not None else None
-            )
+            new_item = ObjectWearItem(object_id=object_id, element_id=element_id)
+            self._apply_field_updates(new_item, fields)
             self.db.add(new_item)
 
         await self.db.commit()

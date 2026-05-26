@@ -21,6 +21,9 @@ class ObjectWearItem(Base):
         nullable=False
     )
     assessment_percent = Column(Numeric(5, 2), nullable=True)  # ввод пользователя (0-100)
+    group_weight = Column(Numeric(5, 2), nullable=True)  # колонка 3: уд. вес укрупнённых элементов (%)
+    element_weight = Column(Numeric(5, 2), nullable=True)  # колонка 4: уд. вес каждого элемента (%)
+    calculated_weight = Column(Numeric(5, 2), nullable=True)  # колонка 5: override default_weight (%)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Уникальность: один элемент - один объект

@@ -32,8 +32,12 @@ class WearItemResponse(BaseModel):
     name: str
     parent_id: Optional[int] = None
     default_weight: Optional[float] = None
+    # Пользовательские overrides весов (NULL => клиент подставляет дефолт или пусто)
+    group_weight: Optional[float] = None        # колонка 3 UI
+    element_weight: Optional[float] = None      # колонка 4 UI
+    calculated_weight: Optional[float] = None   # колонка 5 UI (override default_weight)
     assessment_percent: Optional[float] = None
-    weighted_average: Optional[float] = None  # расчётное
+    weighted_average: Optional[float] = None  # расчётное (по эффективному весу)
     technical_condition: Optional[str] = None  # расчётное
     technical_condition_display: Optional[str] = None  # человекочитаемое
     updated_at: Optional[datetime] = None

@@ -75,7 +75,9 @@ async def update_object_wear(
     """
     try:
         service = WearService(db, is_admin=current_user.is_admin)
-        items_data = [item.model_dump() for item in request.items]
+        # exclude_unset: пробрасываем только поля, которые клиент явно прислал;
+        # element_id всегда явный по схеме, прочие weight/assessment поля — опционально.
+        items_data = [item.model_dump(exclude_unset=True) for item in request.items]
         return await service.update_object_wear(object_id, current_user.id, items_data)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -104,7 +106,7 @@ async def update_single_wear_item(
             object_id=object_id,
             element_id=element_id,
             user_id=current_user.id,
-            assessment_percent=request.assessment_percent
+            fields=request.model_dump(exclude_unset=True),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
