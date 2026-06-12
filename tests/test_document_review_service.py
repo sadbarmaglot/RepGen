@@ -26,7 +26,9 @@ class TestParseDocx:
 
     def test_empty_docx(self, empty_docx_bytes):
         text = DocumentReviewService._parse_docx(empty_docx_bytes)
-        assert text.strip() == ""
+        # _parse_docx всегда добавляет маркер страницы (нужен для "Где: страница" в выводе),
+        # поэтому у пустого документа остаётся только он
+        assert text.strip() == "[Страница 1]"
 
 
 class TestParsePdf:
@@ -151,7 +153,12 @@ class TestReviewDocument:
 
             await service.review_document("doc.docx", prompt="Проверь даты")
 
-        mock_llm.assert_called_once_with("Текст", "Проверь даты")
+        # _run_llm_review теперь получает третьим аргументом модель — проверяем
+        # текст и prompt позиционно, не привязываясь к конкретной модели
+        mock_llm.assert_called_once()
+        args = mock_llm.call_args.args
+        assert args[0] == "Текст"
+        assert args[1] == "Проверь даты"
 
 
 class TestRunLlmReview:
@@ -179,11 +186,17 @@ class TestRunLlmReview:
 
         assert result == "Замечаний нет"
 
-        call_kwargs = mock_client.chat.completions.create.call_args
-        messages = call_kwargs.kwargs.get("messages") or call_kwargs[1].get("messages")
-        user_msg = messages[1]["content"]
+        # Проверка идёт несколькими проходами + merge. Нормативный проход — это
+        # тот вызов, в user-сообщении которого есть reference-документы.
+        calls = mock_client.chat.completions.create.call_args_list
+        ref_messages = [
+            c.kwargs["messages"][1]["content"]
+            for c in calls
+            if "НОРМАТИВНЫЕ ДОКУМЕНТЫ" in c.kwargs["messages"][1]["content"]
+        ]
+        assert ref_messages, "ожидался проход с нормативными документами"
+        user_msg = ref_messages[0]
 
-        assert "НОРМАТИВНЫЕ ДОКУМЕНТЫ" in user_msg
         assert "ГОСТ 31937-2024" in user_msg
         assert "Отчёт текст" in user_msg
         assert "Доп. указания" in user_msg
