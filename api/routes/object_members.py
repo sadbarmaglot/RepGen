@@ -26,7 +26,7 @@ async def assign_user_to_object(
 ):
     """Назначение пользователя на объект (только владельцем проекта)"""
     try:
-        service = ObjectMemberService(db)
+        service = ObjectMemberService(db, is_admin=current_user.is_admin)
         member = await service.assign_user_to_object(object_id, current_user.id, assign_data)
         return member
     except ValueError as e:
@@ -44,7 +44,7 @@ async def unassign_user_from_object(
 ):
     """Снятие пользователя с объекта (только владельцем проекта)"""
     try:
-        service = ObjectMemberService(db)
+        service = ObjectMemberService(db, is_admin=current_user.is_admin)
         success = await service.unassign_user_from_object(object_id, current_user.id, unassign_data)
         if not success:
             raise HTTPException(
@@ -67,7 +67,7 @@ async def get_object_members(
 ):
     """Получение списка участников объекта"""
     try:
-        service = ObjectMemberService(db)
+        service = ObjectMemberService(db, is_admin=current_user.is_admin)
         return await service.get_object_members(object_id, current_user, skip, limit)
     except ValueError as e:
         raise HTTPException(

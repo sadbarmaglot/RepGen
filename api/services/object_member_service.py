@@ -3,51 +3,17 @@ from sqlalchemy import select, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from api.models.entities import ObjectMember, Object, User, Project
+from api.models.entities import ObjectMember, Object, User
 from api.models.requests import ObjectMemberAssignRequest, ObjectMemberUnassignRequest
 from api.models.responses import ObjectMemberResponse, ObjectMemberListResponse
 from api.models.database.enums import GlobalRoleType
+from api.services.access_control_service import AccessControlService
 
 class ObjectMemberService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, is_admin: bool = False):
         self.db = db
-
-    async def _check_object_access(self, object_id: int, user_id: int) -> bool:
-        """Проверка доступа к объекту (владелец проекта или участник объекта)"""
-        # Проверяем является ли пользователь владельцем проекта
-        owner_result = await self.db.execute(
-            select(Object)
-            .join(Project)
-            .where(
-                Object.id == object_id,
-                Project.owner_id == user_id
-            )
-        )
-        if owner_result.scalar_one_or_none():
-            return True
-        
-        # Проверяем является ли пользователь участником объекта
-        member_result = await self.db.execute(
-            select(ObjectMember).where(
-                and_(
-                    ObjectMember.object_id == object_id,
-                    ObjectMember.user_id == user_id
-                )
-            )
-        )
-        return member_result.scalar_one_or_none() is not None
-
-    async def _check_project_owner(self, object_id: int, user_id: int) -> bool:
-        """Проверка является ли пользователь владельцем проекта объекта"""
-        result = await self.db.execute(
-            select(Object)
-            .join(Project)
-            .where(
-                Object.id == object_id,
-                Project.owner_id == user_id
-            )
-        )
-        return result.scalar_one_or_none() is not None
+        self.is_admin = is_admin
+        self.access_control = AccessControlService(db, is_admin=is_admin)
 
     async def assign_user_to_object(
         self, 
@@ -55,10 +21,10 @@ class ObjectMemberService:
         request_user_id: int, 
         assign_data: ObjectMemberAssignRequest
     ) -> ObjectMemberResponse:
-        """Назначение пользователя на объект (только владельцем проекта)"""
-        
-        # Проверяем, что запрашивающий пользователь является владельцем проекта
-        if not await self._check_project_owner(object_id, request_user_id):
+        """Назначение пользователя на объект (владелец проекта, та же группа или admin)"""
+
+        # Проверяем права управления объектом
+        if not await self.access_control.can_manage_object(object_id, request_user_id):
             raise ValueError("У вас нет прав для назначения пользователей на этот объект")
         
         # Проверяем, что назначаемый пользователь существует
@@ -105,10 +71,10 @@ class ObjectMemberService:
         request_user_id: int, 
         unassign_data: ObjectMemberUnassignRequest
     ) -> bool:
-        """Снятие пользователя с объекта (только владельцем проекта)"""
-        
-        # Проверяем, что запрашивающий пользователь является владельцем проекта
-        if not await self._check_project_owner(object_id, request_user_id):
+        """Снятие пользователя с объекта (владелец проекта, та же группа или admin)"""
+
+        # Проверяем права управления объектом
+        if not await self.access_control.can_manage_object(object_id, request_user_id):
             raise ValueError("У вас нет прав для снятия пользователей с этого объекта")
         
         # Ищем связь
@@ -143,7 +109,7 @@ class ObjectMemberService:
         """Получение списка участников объекта"""
         
         # Проверяем доступ к объекту
-        if not await self._check_object_access(object_id, request_user.id):
+        if not await self.access_control.check_object_access(object_id, request_user.id):
             raise ValueError("У вас нет доступа к этому объекту")
         
         is_admin = request_user.global_role == GlobalRoleType.admin

@@ -93,13 +93,13 @@ async def check_project_owner(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Dependency для проверки что пользователь является владельцем проекта"""
+    """Dependency для проверки прав управления проектом (владелец или та же группа)"""
     access_control = AccessControlService(db, is_admin=current_user.is_admin)
 
-    if not await access_control.is_project_owner(project_id, current_user.id):
+    if not await access_control.can_manage_project(project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Только владелец проекта может выполнить это действие"
+            detail="Недостаточно прав для выполнения этого действия"
         )
 
     return project_id
@@ -109,7 +109,7 @@ async def check_object_owner(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Dependency для проверки что пользователь является владельцем проекта объекта"""
+    """Dependency для проверки прав управления объектом (владелец проекта или та же группа)"""
     if current_user.is_admin:
         return object_id
 
@@ -123,10 +123,10 @@ async def check_object_owner(
         )
 
     access_control = AccessControlService(db)
-    if not await access_control.is_project_owner(project_id, current_user.id):
+    if not await access_control.can_manage_project(project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Только владелец проекта может редактировать этот объект"
+            detail="Недостаточно прав для редактирования этого объекта"
         )
 
     return object_id
@@ -155,10 +155,10 @@ async def check_plan_owner(
         )
 
     access_control = AccessControlService(db)
-    if not await access_control.is_project_owner(project_id, current_user.id):
+    if not await access_control.can_manage_project(project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Только владелец проекта может редактировать этот план"
+            detail="Недостаточно прав для редактирования этого плана"
         )
 
     return plan_id
@@ -188,10 +188,10 @@ async def check_mark_owner(
         )
 
     access_control = AccessControlService(db)
-    if not await access_control.is_project_owner(project_id, current_user.id):
+    if not await access_control.can_manage_project(project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Только владелец проекта может редактировать эту отметку"
+            detail="Недостаточно прав для редактирования этой отметки"
         )
 
     return mark_id
@@ -222,10 +222,10 @@ async def check_photo_owner(
         )
 
     access_control = AccessControlService(db)
-    if not await access_control.is_project_owner(project_id, current_user.id):
+    if not await access_control.can_manage_project(project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Только владелец проекта может редактировать это фото"
+            detail="Недостаточно прав для редактирования этого фото"
         )
 
     return photo_id

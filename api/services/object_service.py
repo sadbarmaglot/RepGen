@@ -18,14 +18,14 @@ class ObjectService:
     async def create_object(self, user_id: int, object_data: ObjectCreateRequest) -> ObjectResponse:
         """Создание нового объекта"""
 
-        # Проверяем, что проект существует (и принадлежит пользователю, если не admin)
-        query = select(Project).where(Project.id == object_data.project_id)
-        if not self.is_admin:
-            query = query.where(Project.owner_id == user_id)
-        result = await self.db.execute(query)
+        # Проверяем, что проект существует и пользователь может им управлять
+        # (владелец, та же группа или admin)
+        result = await self.db.execute(
+            select(Project).where(Project.id == object_data.project_id)
+        )
         project = result.scalar_one_or_none()
 
-        if not project:
+        if not project or not await self.access_control.can_manage_project(object_data.project_id, user_id):
             raise ValueError("Проект не найден или у вас нет прав доступа к нему")
         
         object_ = Object(
@@ -73,9 +73,10 @@ class ObjectService:
             select(Object).where(Object.project_id == project_id)
         )
         all_objects = all_objects_result.scalars().all()
-        
-        # Фильтруем объекты по доступу пользователя
-        if self.is_admin:
+
+        # Доступ ко всему проекту (admin, владелец или та же группа) → все объекты.
+        # Иначе доступ только через членство — фильтруем по объектам.
+        if await self.access_control.can_manage_project(project_id, user_id):
             accessible_objects = list(all_objects)
         else:
             accessible_objects = []
@@ -96,16 +97,15 @@ class ObjectService:
         )
 
     async def update_object(self, object_id: int, user_id: int, object_data: ObjectUpdateRequest) -> Optional[ObjectResponse]:
-        """Обновление объекта (только владельцем проекта)"""
-        query = select(Object).join(Project).where(Object.id == object_id)
-        if not self.is_admin:
-            query = query.where(Project.owner_id == user_id)
-        result = await self.db.execute(query)
+        """Обновление объекта (владелец проекта, та же группа или admin)"""
+        result = await self.db.execute(
+            select(Object).where(Object.id == object_id)
+        )
         object_ = result.scalar_one_or_none()
-        
-        if not object_:
+
+        if not object_ or not await self.access_control.can_manage_object(object_id, user_id):
             return None
-        
+
         if object_data.name is not None:
             object_.name = object_data.name
         if object_data.address is not None:
@@ -124,16 +124,15 @@ class ObjectService:
             raise ValueError(f"Ошибка при обновлении объекта: {str(e)}")
 
     async def delete_object(self, object_id: int, user_id: int) -> bool:
-        """Удаление объекта (только владельцем проекта)"""
-        query = select(Object).join(Project).where(Object.id == object_id)
-        if not self.is_admin:
-            query = query.where(Project.owner_id == user_id)
-        result = await self.db.execute(query)
+        """Удаление объекта (владелец проекта, та же группа или admin)"""
+        result = await self.db.execute(
+            select(Object).where(Object.id == object_id)
+        )
         object_ = result.scalar_one_or_none()
-        
-        if not object_:
+
+        if not object_ or not await self.access_control.can_manage_object(object_id, user_id):
             return False
-        
+
         try:
             await self.db.delete(object_)
             await self.db.commit()
