@@ -54,7 +54,9 @@ class MarkService:
             defect_volume_unit=mark_data.defect_volume_unit,
             defect_type=mark_data.defect_type,
             zone_points=mark_data.zone_points,
-            crack_points=mark_data.crack_points
+            crack_points=mark_data.crack_points,
+            measure_points=mark_data.measure_points,
+            show_measure_arrow=mark_data.show_measure_arrow if mark_data.show_measure_arrow is not None else True,
         )
         
         try:
@@ -167,6 +169,10 @@ class MarkService:
             mark.zone_points = mark_data.zone_points
         if "crack_points" in mark_data.model_fields_set:
             mark.crack_points = mark_data.crack_points
+        if "measure_points" in mark_data.model_fields_set:
+            mark.measure_points = mark_data.measure_points
+        if mark_data.show_measure_arrow is not None:
+            mark.show_measure_arrow = mark_data.show_measure_arrow
 
         try:
             await self.db.commit()
@@ -265,11 +271,13 @@ class MarkService:
                 defect_type=mark.defect_type,
                 zone_points=mark.zone_points,
                 crack_points=mark.crack_points,
+                measure_points=mark.measure_points,
+                show_measure_arrow=mark.show_measure_arrow,
                 photos=photo_responses,
                 created_at=mark.created_at
             )
             mark_responses.append(mark_response)
-        
+
         return MarkWithPhotosListResponse(
             marks=mark_responses,
             total=total
@@ -345,6 +353,8 @@ class MarkService:
                     defect_type=mark.defect_type,
                     zone_points=mark.zone_points,
                     crack_points=mark.crack_points,
+                    measure_points=mark.measure_points,
+                    show_measure_arrow=mark.show_measure_arrow,
                     photos=photo_responses,
                     created_at=mark.created_at
                 ))
@@ -409,6 +419,8 @@ class MarkService:
             defect_type=mark.defect_type,
             zone_points=mark.zone_points,
             crack_points=mark.crack_points,
+            measure_points=mark.measure_points,
+            show_measure_arrow=mark.show_measure_arrow,
             photo_count=photo_count,
             created_at=mark.created_at
         )

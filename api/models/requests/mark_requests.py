@@ -27,6 +27,8 @@ class MarkCreateRequest(BaseModel):
     defect_type: Optional[DefectType] = Field(None, description="Тип дефекта")
     zone_points: Optional[List[float]] = Field(None, description="Полигон зоны покрытия [x1,y1, x2,y2, ...]")
     crack_points: Optional[List[float]] = Field(None, description="Трещина [x1,y1, x2,y2]")
+    measure_points: Optional[List[float]] = Field(None, description="Стрелка замера [x1,y1, x2,y2]")
+    show_measure_arrow: Optional[bool] = Field(None, description="Показывать стрелку замера на плане")
 
     @field_validator("defect_type", mode="before")
     @classmethod
@@ -46,6 +48,8 @@ class MarkUpdateRequest(BaseModel):
     defect_type: Optional[DefectType] = Field(None, description="Новый тип дефекта")
     zone_points: Optional[List[float]] = Field(None, description="Полигон зоны покрытия [x1,y1, x2,y2, ...]")
     crack_points: Optional[List[float]] = Field(None, description="Трещина [x1,y1, x2,y2]")
+    measure_points: Optional[List[float]] = Field(None, description="Стрелка замера [x1,y1, x2,y2]")
+    show_measure_arrow: Optional[bool] = Field(None, description="Показывать стрелку замера на плане")
 
     @field_validator("defect_type", mode="before")
     @classmethod

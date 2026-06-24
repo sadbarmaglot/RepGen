@@ -20,9 +20,11 @@ class MarkResponse(BaseModel):
     defect_type: Optional[DefectType] = Field(None, description="Тип дефекта")
     zone_points: Optional[List[float]] = Field(None, description="Полигон зоны покрытия")
     crack_points: Optional[List[float]] = Field(None, description="Трещина")
+    measure_points: Optional[List[float]] = Field(None, description="Стрелка замера [x1,y1, x2,y2]")
+    show_measure_arrow: bool = Field(True, description="Показывать стрелку замера на плане")
     photo_count: Optional[int] = Field(None, description="Количество фотографий для этой метки")
     created_at: datetime = Field(..., description="Дата создания отметки")
-    
+
     class Config:
         from_attributes = True
         use_enum_values = True
@@ -47,6 +49,8 @@ class MarkWithPhotosResponse(BaseModel):
     defect_type: Optional[DefectType] = Field(None, description="Тип дефекта")
     zone_points: Optional[List[float]] = Field(None, description="Полигон зоны покрытия")
     crack_points: Optional[List[float]] = Field(None, description="Трещина")
+    measure_points: Optional[List[float]] = Field(None, description="Стрелка замера [x1,y1, x2,y2]")
+    show_measure_arrow: bool = Field(True, description="Показывать стрелку замера на плане")
     photos: list[PhotoResponse] = Field(default_factory=list, description="Фотографии метки")
     created_at: datetime = Field(..., description="Дата создания отметки")
     

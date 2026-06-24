@@ -201,6 +201,8 @@ async def web_get_plan_marks_with_photos(
             defect_type=mark.defect_type,
             zone_points=mark.zone_points,
             crack_points=mark.crack_points,
+            measure_points=mark.measure_points,
+            show_measure_arrow=mark.show_measure_arrow,
             photos=photo_responses, created_at=mark.created_at,
         ))
 

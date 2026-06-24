@@ -23,6 +23,8 @@ class Mark(Base):
     defect_type = Column(Enum(DefectType, name="defect_type"), nullable=True, comment="Тип дефекта")
     zone_points = Column(JSONB, nullable=True, comment="Полигон зоны покрытия [x1,y1, x2,y2, ...]")
     crack_points = Column(JSONB, nullable=True, comment="Трещина [x1,y1, x2,y2]")
+    measure_points = Column(JSONB, nullable=True, comment="Стрелка замера [x1,y1, x2,y2] — нормализованные координаты 0–1")
+    show_measure_arrow = Column(Boolean, nullable=False, default=True, comment="Показывать стрелку замера на плане")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Связь с планом
