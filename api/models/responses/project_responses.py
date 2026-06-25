@@ -36,3 +36,11 @@ class ProjectListResponse(BaseModel):
     """Ответ со списком проектов"""
     projects: list[ProjectResponse] = Field(..., description="Список проектов")
     total: int = Field(..., description="Общее количество проектов")
+
+class ProjectContentCountResponse(BaseModel):
+    """Количество сущностей внутри проекта — для сравнения с локальным кэшем"""
+    project_id: int
+    objects: int
+    plans: int
+    marks: int
+    photos: int

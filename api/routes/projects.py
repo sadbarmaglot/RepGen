@@ -1,20 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
 from api.services.database import get_db
 from api.services.project_service import ProjectService
 from api.models.requests import (
-    ProjectCreateRequest, 
-    ProjectUpdateRequest, 
+    ProjectCreateRequest,
+    ProjectUpdateRequest,
     ProjectChangeOwnerRequest
 )
 from api.models.responses import (
-    ProjectResponse, 
-    ProjectListResponse
+    ProjectResponse,
+    ProjectListResponse,
+    ProjectContentCountResponse
 )
 from api.dependencies.auth_dependencies import get_current_user, require_admin_role
 from api.dependencies.access_dependencies import check_project_access, check_project_owner
-from api.models.entities import User
+from api.models.entities import User, Object, Plan, Mark, Photo
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -56,6 +58,42 @@ async def get_all_projects(
     """Получение всех проектов (только для администраторов)"""
     project_service = ProjectService(db)
     return await project_service.get_all_projects(skip, limit)
+
+@router.get("/{project_id}/content-count", response_model=ProjectContentCountResponse)
+async def get_project_content_count(
+    project_id: int = Depends(check_project_access),
+    _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Количество объектов, планов, меток и фото внутри проекта"""
+    objects = await db.scalar(
+        select(func.count(Object.id)).where(Object.project_id == project_id)
+    )
+    plans = await db.scalar(
+        select(func.count(Plan.id))
+        .join(Object, Plan.object_id == Object.id)
+        .where(Object.project_id == project_id)
+    )
+    marks = await db.scalar(
+        select(func.count(Mark.id))
+        .join(Plan, Mark.plan_id == Plan.id)
+        .join(Object, Plan.object_id == Object.id)
+        .where(Object.project_id == project_id)
+    )
+    photos = await db.scalar(
+        select(func.count(Photo.id))
+        .join(Mark, Photo.mark_id == Mark.id)
+        .join(Plan, Mark.plan_id == Plan.id)
+        .join(Object, Plan.object_id == Object.id)
+        .where(Object.project_id == project_id)
+    )
+    return ProjectContentCountResponse(
+        project_id=project_id,
+        objects=objects or 0,
+        plans=plans or 0,
+        marks=marks or 0,
+        photos=photos or 0
+    )
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(

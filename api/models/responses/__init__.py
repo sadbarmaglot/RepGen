@@ -4,7 +4,8 @@ from .auth_responses import (
 )
 from .project_responses import (
     ProjectResponse,
-    ProjectListResponse
+    ProjectListResponse,
+    ProjectContentCountResponse
 )
 from .object_responses import (
     ObjectResponse,
