@@ -16,14 +16,51 @@ from api.models.database.enums import MarkType
 from api.services.access_control_service import AccessControlService
 from api.services.redis_service import redis_service
 from common.gc_utils import images_storage
-from common.defects_db import CONSTRUCTION_TYPES as DEFECTS_CONSTRUCTION_TYPES, normalize_construction_type
 from docx_generator.generate_defects_statement_2_report import generate_defects_statement_2_report
 
 logger = logging.getLogger(__name__)
 
-# Типы конструкций берём из DefectsDB, чтобы report_service не расходился
-# с каталогом дефектов и промптами анализа.
-CONSTRUCTION_TYPES = [t["name"] for t in DEFECTS_CONSTRUCTION_TYPES]
+# Типы конструкций (синхронизировано с веб-клиентом и десктопом)
+CONSTRUCTION_TYPES = [
+    'Фундамент',
+    'Фасад',
+    'Стена',
+    'Пол',
+    'Перекрытие',
+    'Покрытие',
+    'Отмостка',
+    'Крыльцо',
+    'Балкон/лоджия',
+    'Лестница',
+    'Перемычка',
+    'Стропильная система',
+    'Стропильная ферма покрытия',
+    'Колонна каркаса',
+    'Ригель каркаса',
+    'Кровля',
+    'Отделочное покрытие',
+    'Козырёк',
+    'Межпанельные швы',
+    'Окна',
+    'Двери',
+    'Подвальное помещение',
+    'Чердачное помещение',
+    'Технический этаж',
+    'Водосточная система',
+    'Стойка',
+    'Столб',
+    'Инженерные сети: система холодного водоснабжения',
+    'Инженерные сети: система горячего водоснабжения',
+    'Инженерные сети: система водоотведения/канализация',
+    'Инженерные сети: система отопления',
+    'Инженерные сети: система электроснабжения',
+    'Инженерные сети: система дымоудаления',
+    'Инженерные сети: система вентиляции',
+    'Инженерные сети: система газоснабжения',
+    'Инженерные сети: система оповещения о пожаре и пожарной автоматике',
+    'Лифт',
+    'Другие конструкции',
+]
 
 # Приоритет единиц измерения (меньше = выше приоритет)
 UNIT_PRIORITY = {
@@ -136,7 +173,7 @@ class ReportService:
         for construction_type in CONSTRUCTION_TYPES:
             for entry in all_entries:
                 photo = entry["photo"]
-                photo_type = normalize_construction_type(photo.type or "")
+                photo_type = (photo.type or "").strip()
                 if photo_type != construction_type:
                     continue
 
