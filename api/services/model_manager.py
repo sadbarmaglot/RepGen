@@ -353,7 +353,7 @@ class ModelManager:
                     "description": defect_data.get("description", ""),
                     "recommendation": defect_data.get("recommendation", ""),
                     "category": defect_data.get("category", ""),
-                    "construction_type": defect_data.get("construction_type", ""),
+                    "construction_type": construction_type or defect_data.get("construction_type", ""),
                     "model_used": config.get("model_name", "unknown"),
                 }
             else:
