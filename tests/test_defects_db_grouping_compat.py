@@ -36,4 +36,36 @@ def test_true_duplicate_column_corrosion_codes_remain_aliases():
     for code in ("KOL006", "KOL011"):
         item = defects_db.get_defect_by_code(code)
         assert item is not None
-        assert item.get("alias_of") == "MTL-CORR"
+        assert item.get("alias_of") == "MTL-CORR_1"
+        assert item["category"] == "В"
+        assert item["recommendation"]
+
+
+def test_legacy_aliases_do_not_resolve_to_empty_category_or_recommendation():
+    for legacy_code in defects_db.LEGACY_CODE_ALIASES:
+        item = defects_db.get_defect_by_code(legacy_code)
+        assert item is not None, legacy_code
+        assert item.get("category"), legacy_code
+        assert item.get("recommendation"), legacy_code
+
+
+def test_legacy_category_overrides_preserve_saved_project_meaning():
+    assert defects_db.get_defect_by_code("LST003")["category"] == "В"
+    assert defects_db.get_defect_by_code("STN016")["category"] == "В"
+
+
+def test_legacy_construction_type_names_are_normalized():
+    assert defects_db.normalize_construction_type("Колонна каркаса") == "Колонна"
+    assert defects_db.normalize_construction_type("Ригель каркаса") == "Ригель"
+    assert defects_db.normalize_construction_type("Стропильная система") == "Стропильная система покрытия"
+    assert defects_db.normalize_construction_type("Инженерные сети: система отопления") == "Инженерные сети: отопление"
+
+    assert defects_db.get_defects_for_type("Колонна каркаса")
+    assert defects_db.get_defects_for_type("Инженерные сети: система отопления")
+
+
+def test_construction_prompt_is_generated_from_catalog_types():
+    prompt = defects_db.USER_PROMPT_CONSTRUCTIONS
+    for construction_type in defects_db.CONSTRUCTION_TYPES:
+        assert f"- {construction_type['name']}" in prompt
+    assert "- Лифт" not in prompt

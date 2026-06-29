@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any
 
-from common.defects_db import SYSTEM_PROMPT, USER_PROMPT, get_user_prompt, get_defect_by_code
+from common.defects_db import SYSTEM_PROMPT, USER_PROMPT, get_user_prompt, get_defect_by_code, normalize_construction_type
 from settings import PROJECT_ID, LOCATION
 
 # OpenAI
@@ -328,8 +328,10 @@ class ModelManager:
 
         provider = self.get_provider(model_name)
 
-        if construction_type is not None:
-            user_prompt = get_user_prompt(construction_type)
+        normalized_construction_type = normalize_construction_type(construction_type)
+
+        if normalized_construction_type is not None:
+            user_prompt = get_user_prompt(normalized_construction_type)
         else:
             user_prompt = self.user_prompt
 
@@ -356,7 +358,7 @@ class ModelManager:
                     # Дефекты теперь многотиповые (many-to-many): возвращаем уже
                     # известный тип конструкции, переданный в анализ, и только при
                     # его отсутствии — представительный тип из каталога.
-                    "construction_type": construction_type or defect_data.get("construction_type", ""),
+                    "construction_type": normalized_construction_type or defect_data.get("construction_type", ""),
                     "model_used": config.get("model_name", "unknown"),
                 }
             else:

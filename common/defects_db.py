@@ -79,6 +79,60 @@ CONSTRUCTION_TYPES = [
 _TYPE_BY_ID = {t["id"]: t for t in CONSTRUCTION_TYPES}
 _TYPE_ID_BY_NAME = {t["name"]: t["id"] for t in CONSTRUCTION_TYPES}
 
+CONSTRUCTION_TYPE_ALIASES = {
+    # Старые/клиентские названия -> канонические имена CONSTRUCTION_TYPES.
+    "Колонна каркаса": "Колонна",
+    "Ригель каркаса": "Ригель",
+    "Стропильная система": "Стропильная система покрытия",
+    "Подкрановая балка": "Балка",
+    "Стеновое ограждение": "Стена",
+    "Вертикальные связи": "Другие конструкции",
+    "Горизонтальные связи": "Другие конструкции",
+    "Распорки": "Другие конструкции",
+    "Крыша": "Кровля",
+    "Инженерные сети: система холодного водоснабжения": "Инженерные сети: ХВС",
+    "Инженерные сети: система горячего водоснабжения": "Инженерные сети: ГВС",
+    "Инженерные сети: система водоотведения/канализация": "Инженерные сети: канализация",
+    "Инженерные сети: система отопления": "Инженерные сети: отопление",
+    "Инженерные сети: система электроснабжения": "Инженерные сети: электроснабжение",
+    "Инженерные сети: система дымоудаления": "Инженерные сети: дымоудаление",
+    "Инженерные сети: система вентиляции": "Инженерные сети: вентиляция",
+    "Инженерные сети: система газоснабжения": "Инженерные сети: газоснабжение",
+    "Инженерные сети: система оповещения о пожаре и пожарной автоматике": "Инженерные сети: пожарная автоматика",
+    "Внутридомовая инженерная система холодного водоснабжения": "Инженерные сети: ХВС",
+    "Внутридомовая инженерная система горячего водоснабжения": "Инженерные сети: ГВС",
+    "Внутридомовая инженерная система водоотведения": "Инженерные сети: канализация",
+    "Внутридомовая инженерная система теплоснабжения": "Инженерные сети: отопление",
+    "Внутридомовая инженерная система электроснабжения": "Инженерные сети: электроснабжение",
+    "Внутридомовая инженерная система газоснабжения": "Инженерные сети: газоснабжение",
+    "Система дымоудаления": "Инженерные сети: дымоудаление",
+    "Система вентиляции": "Инженерные сети: вентиляция",
+    "Системы оповещения о пожаре и противопожарной автоматики": "Инженерные сети: пожарная автоматика",
+}
+
+
+def normalize_construction_type(construction_type):
+    """Вернуть каноническое имя типа конструкции с учётом legacy/client aliases."""
+    if construction_type is None:
+        return None
+    value = str(construction_type).strip()
+    if not value:
+        return ""
+    if value in _TYPE_BY_ID:
+        return _TYPE_BY_ID[value]["name"]
+    if value in _TYPE_ID_BY_NAME:
+        return value
+
+    alias = CONSTRUCTION_TYPE_ALIASES.get(value)
+    if not alias:
+        return value
+    if alias in _TYPE_BY_ID:
+        return _TYPE_BY_ID[alias]["name"]
+    if alias in _TYPE_ID_BY_NAME:
+        return alias
+    return value
+
+
 STRUCTURAL_TYPES = [t["id"] for t in CONSTRUCTION_TYPES if not t["is_engineering_system"]]
 ENGINEERING_SYSTEM_TYPES = [t for t in CONSTRUCTION_TYPES if t["is_engineering_system"] and t["group"] == "Инженерные сети"]
 EQUIPMENT_TYPES = [t for t in CONSTRUCTION_TYPES if t["group"] == "Оборудование"]
@@ -389,11 +443,11 @@ DEFECTS_CATALOG += [
         "tags": ["отклонение от вертикали", "крен", "выпучивание", "наклон стены"],
         "similar_defects": ["MAS-COLLAPSE (уже обрушение/вывал)"],
         "material": "Кирпич, бетон, железобетон",
-        "category": "ТРЕБУЕТ УТОЧНЕНИЯ",
+        "category": "Б",
         "recommendation": "Выполнить инструментальный контроль отклонений. При превышении допусков — мониторинг и усиление по специально разработанному проекту",
         "applies_to": ["wall", "facade", "pillar", "other"],
         "source": "Ориентир заказчика; Механосборочный",
-        "comment": "Категория зависит от величины отклонения и от того, несущая ли стена. Числовых допусков по стенам в приложенной нормативке нет. По обычному фото без масштаба не определяется — параметр требует инструментального/ручного ввода.",
+        "comment": "Категория принята как Б для видимого крена/выпучивания; точная категория зависит от величины отклонения и от того, несущая ли стена. Числовых допусков по стенам в приложенной нормативке нет. По обычному фото без масштаба не определяется — параметр требует инструментального/ручного ввода.",
         "photo_recognizable": "low",
     },
     {
@@ -880,7 +934,7 @@ LEGACY_ENGINEERING_DEFECTS = [
      "material": "Система электроснабжения", "category": "Б",
      "recommendation": "Выполнить реконструкцию системы электроснабжения по специально разработанному проекту в соответствии с действующими нормами",
      "applies_to": ["es_electrical"], "source": "defects_db legacy INZ001",
-     "comment": "Инженерные сети на этом этапе не наполняются; запись сохранена для совместимости.", "photo_recognizable": "medium"},
+     "comment": "Legacy-запись сохранена для совместимости; новые инженерные дефекты вынесены в ENGINEERING_DEFECTS.", "photo_recognizable": "medium"},
     {"code": "INZ002", "title": "Неисправности системы отопления",
      "description": "Следы протечек, коррозия стальных труб, следы ремонтов, ухудшение теплотехнических свойств приборов, местами отсутствует запорно-регулирующая арматура",
      "visual_signs": "Ржавые трубы и потёки, накипь/отложения, отсутствие арматуры на подводках",
@@ -888,7 +942,7 @@ LEGACY_ENGINEERING_DEFECTS = [
      "material": "Система отопления", "category": "Б",
      "recommendation": "Выполнить реконструкцию системы отопления по специально разработанному проекту в соответствии с СП 60.13330.2020",
      "applies_to": ["es_heating"], "source": "defects_db legacy INZ002",
-     "comment": "Инженерные сети на этом этапе не наполняются; запись сохранена для совместимости.", "photo_recognizable": "medium"},
+     "comment": "Legacy-запись сохранена для совместимости; новые инженерные дефекты вынесены в ENGINEERING_DEFECTS.", "photo_recognizable": "medium"},
 ]
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1036,43 +1090,60 @@ LEGACY_CODE_ALIASES = {
     "KRV003": "KRV001", "KRV009": "MTL-DEF",
     "POL002": "POL001",
     # Лестница
-    "LST001": "MTL-DEF", "LST002": "MTL-CORR", "LST003": "RC-COVER",
+    "LST001": "MTL-DEF", "LST002": "MTL-CORR_1", "LST003": "RC-COVER",
     # Колонна
     "KOL001": "RC-LEAK", "KOL002": "RC-FINISH-WET", "KOL003": "RC-SPALL",
-    "KOL004": "RC-COVER", "KOL005": "RC-CRACK", "KOL006": "MTL-CORR",
+    "KOL004": "RC-COVER", "KOL005": "RC-CRACK_2", "KOL006": "MTL-CORR_1",
     "KOL007": "MTL-CUT", "KOL008": "MTL-DEF", "KOL009": "MTL-CORR_2",
-    "KOL010": "MTL-CORR_3", "KOL011": "MTL-CORR",
+    "KOL010": "MTL-CORR_3", "KOL011": "MTL-CORR_1",
     # Перекрытие (балки/плиты)
-    "PRK001": "MTL-CORR", "PRK001_1": "MTL-CORR_1", "PRK001_2": "MTL-CORR_2",
+    "PRK001": "MTL-CORR_1", "PRK001_1": "MTL-CORR_1", "PRK001_2": "MTL-CORR_2",
     "PRK001_3": "MTL-CORR_3", "PRK001_4": "MTL-CORR_3", "PRK002": "MTL-CUT",
-    "PRK003": "MTL-DEF", "PRK004": "MTL-CORR", "PRK005": "RC-LEAK",
+    "PRK003": "MTL-DEF", "PRK004": "MTL-CORR_1", "PRK005": "RC-LEAK",
     "PRK006": "RC-FINISH-WET", "PRK007": "RC-SPALL", "PRK008": "RC-COVER",
-    "PRK009": "RC-CRACK", "PRK010": "RC-LEAK", "PRK011": "RC-FINISH-WET",
-    "PRK012": "RC-SPALL", "PRK013": "RC-COVER", "PRK014": "RC-CRACK",
+    "PRK009": "RC-CRACK_2", "PRK010": "RC-LEAK", "PRK011": "RC-FINISH-WET",
+    "PRK012": "RC-SPALL", "PRK013": "RC-COVER", "PRK014": "RC-CRACK_2",
     # Покрытие (балки/плиты)
-    "PKR001": "MTL-CORR", "PKR002": "MTL-CUT", "PKR003": "MTL-DEF",
-    "PKR004": "MTL-CORR_2", "PKR005": "MTL-CORR_3", "PKR006": "MTL-CORR",
+    "PKR001": "MTL-CORR_1", "PKR002": "MTL-CUT", "PKR003": "MTL-DEF",
+    "PKR004": "MTL-CORR_2", "PKR005": "MTL-CORR_3", "PKR006": "MTL-CORR_1",
     "PKR007": "RC-LEAK", "PKR008": "RC-FINISH-WET", "PKR009": "RC-SPALL",
-    "PKR010": "RC-COVER", "PKR011": "RC-CRACK", "PKR012": "RC-LEAK",
+    "PKR010": "RC-COVER", "PKR011": "RC-CRACK_2", "PKR012": "RC-LEAK",
     "PKR013": "RC-FINISH-WET", "PKR014": "RC-SPALL", "PKR015": "RC-COVER",
-    "PKR016": "RC-CRACK",
+    "PKR016": "RC-CRACK_2",
     # Стропильная ферма
     "FRM001": "RC-LEAK", "FRM002": "RC-FINISH-WET", "FRM003": "RC-SPALL",
-    "FRM004": "RC-COVER", "FRM005": "RC-CRACK", "FRM006": "MTL-CORR",
+    "FRM004": "RC-COVER", "FRM005": "RC-CRACK_2", "FRM006": "MTL-CORR_1",
     "FRM007": "MTL-CUT", "FRM008": "MTL-DEF", "FRM009": "MTL-CORR_2",
-    "FRM010": "MTL-CORR_3", "FRM011": "MTL-CORR",
+    "FRM010": "MTL-CORR_3", "FRM011": "MTL-CORR_1",
     # Стена
-    "STN001": "MAS-CRACK", "STN001_1": "MAS-CRACK_1", "STN001_2": "MAS-CRACK_2",
+    "STN001": "MAS-CRACK_2", "STN001_1": "MAS-CRACK_1", "STN001_2": "MAS-CRACK_2",
     "STN001_3": "MAS-CRACK_2", "STN001_4": "MAS-CRACK_3", "STN001_5": "MAS-CRACK_4",
     "STN001_6": "MAS-CRACK_5", "STN002": "MAS-LINTEL-CRACK", "STN003": "MAS-GAP",
     "STN005": "MAS-EFFLOR", "STN006": "MAS-HOLE",
-    "STN007": "FIN-PEEL", "STN008": "MAS-DESTR", "STN008_1": "MAS-DESTR_1",
+    "STN007": "FIN-PEEL", "STN008": "MAS-DESTR_1", "STN008_1": "MAS-DESTR_1",
     "STN008_2": "MAS-DESTR_2", "STN008_3": "MAS-DESTR_3", "STN009": "MAS-COLLAPSE",
     "STN011": "JNT001",
-    "STN013": "FIN-BIO", "STN014": "MAS-JOINT", "STN015": "RC-CRACK",
+    "STN013": "FIN-BIO", "STN014": "MAS-JOINT", "STN015": "RC-CRACK_2",
     "STN015_1": "RC-CRACK_1", "STN015_2": "RC-CRACK_2", "STN015_3": "RC-CRACK_3",
     "STN016": "RC-COVER", "STN017": "ENC-METAL", "STN018": "WIN001",
     "STN019": "WIN002", "STN020": "DOOR001",
+}
+
+LEGACY_CODE_FIELD_OVERRIDES = {
+    "LST003": {
+        "category": "В",
+        "description": "Разрушение защитного слоя бетона с оголением и поверхностной коррозией армирования ступеней лестниц",
+        "recommendation": "Очистить поврежденные участки от слабопрочного бетона, арматуру от продуктов коррозии. Восстановить защитный слой бетона",
+        "visual_signs": "Разрушение, оголение арматуры",
+        "construction_type": "Лестница",
+    },
+    "STN016": {
+        "category": "В",
+        "description": "Разрушение защитного слоя бетона с оголением и поверхностной коррозией рабочего армирования стеновых панелей",
+        "recommendation": "Очистить поврежденные участки от отслаивающегося материала, арматуру от продуктов коррозии, восстановить защитный слой бетона",
+        "visual_signs": "Видны следы поверхностной коррозии рабочего армирования, видно армирование панелей, следы сколов на поверхности стеновых панелей",
+        "construction_type": "Стена",
+    },
 }
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1204,9 +1275,11 @@ ALL_DEFECTS = DEFECTS_CATALOG + ENGINEERING_DEFECTS + LEGACY_ENGINEERING_DEFECTS
 def get_defects_for_type(construction_type):
     """
     Вернуть список дефектов, применимых к указанному типу конструкции.
-    construction_type — имя (как в приложении, напр. 'Стена') или id ('wall').
+    construction_type — имя (как в приложении, напр. 'Стена'), id ('wall')
+    или legacy/client alias ('Инженерные сети: система отопления').
     """
-    type_id = construction_type if construction_type in _TYPE_BY_ID else _TYPE_ID_BY_NAME.get(construction_type)
+    normalized_type = normalize_construction_type(construction_type)
+    type_id = normalized_type if normalized_type in _TYPE_BY_ID else _TYPE_ID_BY_NAME.get(normalized_type)
     if type_id is None:
         return []
     return [d for d in ALL_DEFECTS if type_id in d.get("applies_to", [])]
@@ -1249,8 +1322,25 @@ def _build_code_index():
         if not code:
             continue
         ctype = _first_type_name(defect)
-        index[code] = {**defect, "construction_type": ctype}
         params = defect.get("parameters")
+        index_entry = {**defect, "construction_type": ctype}
+        if params:
+            first_range = next(
+                (
+                    r
+                    for cfg in params.values()
+                    for r in cfg.get("ranges", [])
+                    if r.get("code")
+                ),
+                None,
+            )
+            if first_range:
+                index_entry["default_variant_code"] = first_range.get("code", "")
+                if not index_entry.get("category"):
+                    index_entry["category"] = first_range.get("category", "")
+                if not index_entry.get("recommendation"):
+                    index_entry["recommendation"] = first_range.get("recommendation", "")
+        index[code] = index_entry
         if params:
             for param_name, cfg in params.items():
                 for r in cfg.get("ranges", []):
@@ -1277,7 +1367,12 @@ def _build_code_index():
     # Алиасы legacy-кодов
     for legacy, canonical in LEGACY_CODE_ALIASES.items():
         if canonical in index and legacy not in index:
-            index[legacy] = {**index[canonical], "alias_of": canonical, "legacy_code": legacy}
+            index[legacy] = {
+                **index[canonical],
+                **LEGACY_CODE_FIELD_OVERRIDES.get(legacy, {}),
+                "alias_of": canonical,
+                "legacy_code": legacy,
+            }
     _DEFECTS_BY_CODE = index
     return index
 
@@ -1392,26 +1487,13 @@ def get_user_prompt(construction_type=None):
 
 USER_PROMPT = get_user_prompt()
 
-USER_PROMPT_CONSTRUCTIONS = """
-На фото — участок строительной конструкции c дефектом.
+def get_user_prompt_constructions():
+    construction_types_text = "\n".join(f"- {t['name']}" for t in CONSTRUCTION_TYPES)
+    return f"""
+На фото — участок строительной конструкции или инженерной системы c дефектом.
 
-На выбор представлены следующие строительные конструкции:
-- Балка
-- Балкон/лоджия
-- Другие конструкции
-- Колонна
-- Кровля
-- Крыльцо
-- Лестница
-- Отмостка
-- Перекрытие
-- Покрытие
-- Пол
-- Стена
-- Стропильная система покрытия
-- Стропильная ферма покрытия
-- Фасад
-- Фундамент
+На выбор представлены следующие типы конструкций и инженерных систем:
+{construction_types_text}
 
 Укажи подходящую конструкцию из этого списка в JSON поле "construction_type".
 ВАЖНО: Используй ТОЧНОЕ написание из списка выше, включая заглавные буквы.
@@ -1423,11 +1505,14 @@ USER_PROMPT_CONSTRUCTIONS = """
 ВАЖНО: Если на фото несколько конструкций, уверенность должна быть не более 0.6-0.7.
 
 Ответ строго в JSON:
-{
+{{
   "construction_type": "Тип конструкции",
   "confidence": 0.95
-}
+}}
 """
+
+
+USER_PROMPT_CONSTRUCTIONS = get_user_prompt_constructions()
 
 USER_PROMPT_DEFECT_DESCRIPTION = """
 На фото — участок строительной конструкции c дефектом.
