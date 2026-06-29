@@ -99,6 +99,7 @@ WOOD_TYPES = ["rafter_system", "truss", "windows", "doors", "stairs",
 FINISH_TYPES = ["wall", "facade", "finish_coating", "slab", "roof_structure", "column",
                 "beam", "girt", "porch", "balcony", "basement", "stairs", "lintel",
                 "technical_floor", "attic", "other"]
+FINISH_TYPES_EXCEPT_WALL = [t for t in FINISH_TYPES if t != "wall"]
 ENCLOSURE_TYPES = ["wall", "facade", "other"]
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -437,8 +438,50 @@ DEFECTS_CATALOG += [
         "material": "Штукатурка, окраска, отделочные слои",
         "category": "В",
         "recommendation": "Трещины расшить, очистить, зачеканить безусадочной смесью / выполнить косметический ремонт",
-        "applies_to": FINISH_TYPES,
+        "applies_to": FINISH_TYPES_EXCEPT_WALL,
         "source": "defects_db legacy STN004/STN010/STN012; Механосборочный",
+        "photo_recognizable": "medium",
+    },
+    {
+        "code": "STN004",
+        "title": "Трещины отделочных слоёв наружных стен входной группы",
+        "description": "Трещины в теле штукатурного слоя наружных поверхностей входной группы здания",
+        "visual_signs": "Тонкие трещины по штукатурному слою наружных поверхностей входной группы; основание стены не разрушено",
+        "tags": ["трещина штукатурки", "наружная стена", "входная группа", "отделочный слой"],
+        "similar_defects": ["FIN-CRACK", "STN010", "STN012", "MAS-CRACK"],
+        "material": "Штукатурка, отделочные слои",
+        "category": "В",
+        "recommendation": "Трещины расшить, очистить от слабопрочного материала и пыли. Выполнить косметический ремонт поврежденных участков",
+        "applies_to": ["wall"],
+        "source": "defects_db legacy STN004; группирующий код сохранён для ведомости",
+        "photo_recognizable": "medium",
+    },
+    {
+        "code": "STN010",
+        "title": "Деструкция и трещины отделки цокольной части стен",
+        "description": "Деструкция, трещины в теле отделочных слоёв цокольной части наружных стен",
+        "visual_signs": "Трещины и разрушение штукатурного/окрасочного слоя в нижней, цокольной части наружной стены",
+        "tags": ["цоколь", "трещина штукатурки", "деструкция отделки", "нижняя часть стены"],
+        "similar_defects": ["FIN-CRACK", "STN004", "STN012", "FIN-PEEL"],
+        "material": "Штукатурка, окраска, отделочные слои",
+        "category": "В",
+        "recommendation": "Очистить поврежденные участки от отслаивающегося материала. Оштукатурить поврежденные участки полимерцементным раствором по полимерной сетке",
+        "applies_to": ["wall"],
+        "source": "defects_db legacy STN010; группирующий код сохранён для ведомости",
+        "photo_recognizable": "medium",
+    },
+    {
+        "code": "STN012",
+        "title": "Трещины отделочных слоёв внутренних стен",
+        "description": "Трещины в отделочных слоях по внутренней поверхности стен",
+        "visual_signs": "Тонкие трещины по штукатурке/окраске на внутренней поверхности стен; основание стены не разрушено",
+        "tags": ["трещина штукатурки", "внутренняя стена", "отделочный слой", "помещение"],
+        "similar_defects": ["FIN-CRACK", "STN004", "STN010", "MAS-CRACK"],
+        "material": "Штукатурка, окраска, отделочные слои",
+        "category": "В",
+        "recommendation": "Трещины расшить, очистить от слабого материала. Произвести зачеканку безусадочной высокопрочной смесью",
+        "applies_to": ["wall"],
+        "source": "defects_db legacy STN012; группирующий код сохранён для ведомости",
         "photo_recognizable": "medium",
     },
     {
@@ -713,6 +756,20 @@ DEFECTS_CATALOG += [
      "material": "Водоприёмные воронки", "category": "В",
      "recommendation": "Очистить воронки от засорений, выполнить ревизию системы водоотвода",
      "applies_to": ["roof", "drainage_system"], "source": "defects_db legacy KRV005", "photo_recognizable": "high"},
+    {"code": "KRV006", "title": "Отсутствие водоприёмных воронок на кровле",
+     "description": "Отсутствие водоприёмных воронок на кровле",
+     "visual_signs": "Проёмы/места слива на кровле без водоприёмных воронок; вода сбрасывается без штатного приёмного элемента",
+     "tags": ["воронка", "отсутствие воронки", "водоотвод", "кровля"],
+     "similar_defects": ["KRV005", "KRV004"], "material": "Водоприёмные воронки", "category": "В",
+     "recommendation": "Выполнить устройство водоприёмных воронок на кровле",
+     "applies_to": ["roof", "drainage_system"], "source": "defects_db legacy KRV006; группирующий код сохранён для ведомости", "photo_recognizable": "high"},
+    {"code": "KRV008", "title": "Отсутствие защитных зонтов над технологическими выпусками",
+     "description": "Отсутствие защитных зонтов над технологическими выпусками",
+     "visual_signs": "Открытые технологические выпуски/патрубки на кровле без защитных зонтов или колпаков",
+     "tags": ["защитный зонт", "технологический выпуск", "кровля", "отсутствие зонта"],
+     "similar_defects": ["KRV005"], "material": "Металл, элементы кровельных выпусков", "category": "В",
+     "recommendation": "Выполнить устройство защитных зонтов над технологическими выпусками",
+     "applies_to": ["roof"], "source": "defects_db legacy KRV008; группирующий код сохранён для ведомости", "photo_recognizable": "high"},
 
     # Водосточная система
     {"code": "DRN001", "title": "Повреждение / коррозия водосточной системы",
@@ -976,7 +1033,7 @@ LEGACY_CODE_ALIASES = {
     # Фундамент / отмостка / кровля / полы
     "FND002": "RC-SPALL",
     "OTM003": "OTM001", "OTM006": "OTM005",
-    "KRV003": "KRV001", "KRV006": "KRV005", "KRV008": "KRV005", "KRV009": "MTL-DEF",
+    "KRV003": "KRV001", "KRV009": "MTL-DEF",
     "POL002": "POL001",
     # Лестница
     "LST001": "MTL-DEF", "LST002": "MTL-CORR", "LST003": "RC-COVER",
@@ -1008,10 +1065,10 @@ LEGACY_CODE_ALIASES = {
     "STN001": "MAS-CRACK", "STN001_1": "MAS-CRACK_1", "STN001_2": "MAS-CRACK_2",
     "STN001_3": "MAS-CRACK_2", "STN001_4": "MAS-CRACK_3", "STN001_5": "MAS-CRACK_4",
     "STN001_6": "MAS-CRACK_5", "STN002": "MAS-LINTEL-CRACK", "STN003": "MAS-GAP",
-    "STN004": "FIN-CRACK", "STN005": "MAS-EFFLOR", "STN006": "MAS-HOLE",
+    "STN005": "MAS-EFFLOR", "STN006": "MAS-HOLE",
     "STN007": "FIN-PEEL", "STN008": "MAS-DESTR", "STN008_1": "MAS-DESTR_1",
     "STN008_2": "MAS-DESTR_2", "STN008_3": "MAS-DESTR_3", "STN009": "MAS-COLLAPSE",
-    "STN010": "FIN-CRACK", "STN011": "JNT001", "STN012": "FIN-CRACK",
+    "STN011": "JNT001",
     "STN013": "FIN-BIO", "STN014": "MAS-JOINT", "STN015": "RC-CRACK",
     "STN015_1": "RC-CRACK_1", "STN015_2": "RC-CRACK_2", "STN015_3": "RC-CRACK_3",
     "STN016": "RC-COVER", "STN017": "ENC-METAL", "STN018": "WIN001",
@@ -1384,7 +1441,3 @@ USER_PROMPT_DEFECT_DESCRIPTION = """
   "description": "дефекты и повреждения"
 }
 """
-
-
-
-
